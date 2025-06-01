@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { questionsAPI, difficultyUtils, courseUtils } from '../services/api'
+import { questionsAPI, difficultyUtils, courseUtils, questionUtils } from '../services/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const QuizPage = () => {
@@ -21,6 +21,15 @@ const QuizPage = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [score, setScore] = useState({ correct: 0, total: 0 })
+  
+  // 🆕 NEW: State for handling explanation and additional answer details
+  const [answerDetails, setAnswerDetails] = useState({
+    correctAnswerText: '',
+    correctAnswerLetter: '',
+    explanation: '',
+    hasExplanation: false
+  })
+  
   const [quizInfo, setQuizInfo] = useState({
     difficulty: courseInfo.difficulty,
     displayName: difficultyUtils.getDisplayName(courseInfo.difficulty),
@@ -66,7 +75,19 @@ const QuizPage = () => {
       }
 
       if (response.success && response.questions && response.questions.length > 0) {
-        setQuestions(response.questions)
+        // 🔍 VALIDATION: Validate each question has required fields
+        const validQuestions = response.questions.filter(questionUtils.validateQuestion)
+        
+        if (validQuestions.length !== response.questions.length) {
+          console.warn(`${response.questions.length - validQuestions.length} invalid questions filtered out`)
+        }
+        
+        if (validQuestions.length === 0) {
+          setError('No valid questions available')
+          return
+        }
+        
+        setQuestions(validQuestions)
       } else {
         setError(`No questions available for ${quizInfo.displayName} level`)
       }
@@ -96,6 +117,15 @@ const QuizPage = () => {
       if (response.success) {
         setIsCorrect(response.isCorrect)
         setCorrectAnswerIndex(response.correctAnswerIndex)
+        
+        // 🆕 NEW: Handle additional answer details from updated API
+        setAnswerDetails({
+          correctAnswerText: response.correctAnswerText || questionUtils.getCorrectAnswerText(currentQuestion),
+          correctAnswerLetter: response.correctAnswerLetter || '', // A, B, C, D
+          explanation: response.explanation || '',
+          hasExplanation: !!(response.explanation && response.explanation.trim())
+        })
+        
         setShowResult(true)
 
         // Update score
@@ -122,13 +152,23 @@ const QuizPage = () => {
       setShowResult(false)
       setIsCorrect(false)
       setCorrectAnswerIndex(null)
+      
+      // 🆕 Reset answer details for next question
+      setAnswerDetails({
+        correctAnswerText: '',
+        correctAnswerLetter: '',
+        explanation: '',
+        hasExplanation: false
+      })
     } else {
       // Quiz finished - navigate to home with results
       const finalScore = {
         correct: score.correct + (isCorrect ? 1 : 0),
         total: score.total + 1,
         difficulty: quizInfo.difficulty,
-        displayName: quizInfo.displayName
+        displayName: quizInfo.displayName,
+        // 🆕 NEW: Include final answer details in quiz completion
+        finalAnswerDetails: answerDetails
       }
       
       navigate('/', { 
@@ -362,6 +402,12 @@ const QuizPage = () => {
                 <div className="flex items-center">
                   {icon}
                   <span className="flex-1">{option}</span>
+                  {/* 🆕 NEW: Show correct answer letter for reference */}
+                  {showResult && index === correctAnswerIndex && answerDetails.correctAnswerLetter && (
+                    <span className="ml-2 text-xs bg-success-500 text-white px-2 py-1 rounded">
+                      {answerDetails.correctAnswerLetter}
+                    </span>
+                  )}
                 </div>
               </button>
             )
@@ -402,9 +448,26 @@ const QuizPage = () => {
                 }`}>
                   {isCorrect 
                     ? 'Great job! You got it right.' 
-                    : `The correct answer is: ${currentQuestion.options[correctAnswerIndex]}`
+                    : `The correct answer is: ${answerDetails.correctAnswerText}`
                   }
                 </p>
+                
+                {/* 🆕 NEW: Show explanation if available */}
+                {answerDetails.hasExplanation && (
+                  <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-start space-x-2">
+                      <div className="text-blue-500 mt-0.5">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-blue-600 mb-1">Explanation</p>
+                        <p className="text-sm text-gray-700">{answerDetails.explanation}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

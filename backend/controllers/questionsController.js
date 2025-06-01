@@ -10,19 +10,37 @@ const shuffleArray = (array) => {
   return shuffled;
 };
 
+// Helper function to get correct answer text from question object
+const getCorrectAnswerText = (question) => {
+  switch(question.correct_answer) {
+    case 'A': return question.option_a;
+    case 'B': return question.option_b;
+    case 'C': return question.option_c;
+    case 'D': return question.option_d;
+    default: throw new Error(`Invalid correct_answer: ${question.correct_answer}`);
+  }
+};
+
+// Helper function to convert correct_answer letter to index (for frontend compatibility)
+const getCorrectAnswerIndex = (question, shuffledOptions) => {
+  const correctText = getCorrectAnswerText(question);
+  return shuffledOptions.findIndex(option => option.text === correctText);
+};
+
 // Helper function to shuffle options and track correct answer
 const shuffleOptions = (question) => {
   const options = [
-    { text: question.option_a, isCorrect: true },
-    { text: question.option_b, isCorrect: false },
-    { text: question.option_c, isCorrect: false },
-    { text: question.option_d, isCorrect: false }
+    { text: question.option_a, letter: 'A' },
+    { text: question.option_b, letter: 'B' },
+    { text: question.option_c, letter: 'C' },
+    { text: question.option_d, letter: 'D' }
   ];
 
   const shuffledOptions = shuffleArray(options);
   
   // Find which position the correct answer is in after shuffle
-  const correctIndex = shuffledOptions.findIndex(option => option.isCorrect);
+  const correctAnswerText = getCorrectAnswerText(question);
+  const correctIndex = shuffledOptions.findIndex(option => option.text === correctAnswerText);
 
   return {
     id: question.id,
@@ -31,6 +49,8 @@ const shuffleOptions = (question) => {
     question_text: question.question_text,
     options: shuffledOptions.map(option => option.text),
     correct_answer_index: correctIndex,
+    correct_answer_letter: question.correct_answer, // Keep original letter for backend reference
+    explanation: question.explanation, // 🆕 NEW: Add explanation
     difficulty: question.difficulty,
     created_at: question.created_at,
     updated_at: question.updated_at
@@ -42,10 +62,15 @@ const getRandomQuestions = async (req, res) => {
   try {
     const { limit = 10, difficulty } = req.query;
     
-    // Build query with filters
+    // Build query with filters - 🆕 IMPORTANT: Include correct_answer and explanation
     let query = supabase
       .from('questions')
-      .select('*')
+      .select(`
+        id, word_id, paragraph, question_text,
+        option_a, option_b, option_c, option_d,
+        correct_answer, explanation,
+        difficulty, is_active, created_at, updated_at
+      `)
       .eq('is_active', true); // Only get active questions
     
     // Add difficulty filter if specified
@@ -72,6 +97,16 @@ const getRandomQuestions = async (req, res) => {
       return res.status(404).json({ 
         error: 'No questions found',
         message: `No ${difficulty ? difficulty + ' difficulty' : ''} questions available in the database` 
+      });
+    }
+
+    // 🔍 VALIDATION: Check if questions have correct_answer field
+    const invalidQuestions = questions.filter(q => !q.correct_answer || !['A', 'B', 'C', 'D'].includes(q.correct_answer));
+    if (invalidQuestions.length > 0) {
+      console.error('Invalid questions found:', invalidQuestions.map(q => ({ id: q.id, correct_answer: q.correct_answer })));
+      return res.status(500).json({
+        error: 'Data integrity error',
+        message: 'Some questions have invalid correct_answer values'
       });
     }
 
@@ -144,7 +179,7 @@ const getDifficultyLevels = async (req, res) => {
   }
 };
 
-// Check answer for a specific question
+// Check answer for a specific question - 🚨 MAJOR UPDATE REQUIRED
 const checkAnswer = async (req, res) => {
   try {
     const { questionId, selectedIndex } = req.body;
@@ -156,10 +191,15 @@ const checkAnswer = async (req, res) => {
       });
     }
 
-    // Get the original question to verify correct answer
+    // Get the original question to verify correct answer - 🆕 Include correct_answer and explanation
     const { data: question, error } = await supabase
       .from('questions')
-      .select('*')
+      .select(`
+        id, word_id, paragraph, question_text,
+        option_a, option_b, option_c, option_d,
+        correct_answer, explanation,
+        difficulty, is_active, created_at, updated_at
+      `)
       .eq('id', questionId)
       .eq('is_active', true) // Only check active questions
       .single();
@@ -171,15 +211,31 @@ const checkAnswer = async (req, res) => {
       });
     }
 
-    // Process the question to get the shuffled version
+    // 🔍 VALIDATION: Check if question has valid correct_answer
+    if (!question.correct_answer || !['A', 'B', 'C', 'D'].includes(question.correct_answer)) {
+      console.error('Invalid question correct_answer:', { id: question.id, correct_answer: question.correct_answer });
+      return res.status(500).json({
+        error: 'Data integrity error',
+        message: 'Question has invalid correct_answer value'
+      });
+    }
+
+    // Process the question to get the shuffled version (same logic as when serving questions)
     const processedQuestion = shuffleOptions(question);
+    
+    // Check if the selected index matches the correct answer index
     const isCorrect = selectedIndex === processedQuestion.correct_answer_index;
+    
+    // Get the text of the correct answer
+    const correctAnswerText = getCorrectAnswerText(question);
 
     res.json({
       success: true,
       isCorrect,
       correctAnswerIndex: processedQuestion.correct_answer_index,
-      correctAnswerText: processedQuestion.options[processedQuestion.correct_answer_index],
+      correctAnswerText,
+      correctAnswerLetter: question.correct_answer, // 🆕 NEW: Original letter
+      explanation: question.explanation, // 🆕 NEW: Explanation if available
       difficulty: question.difficulty
     });
 

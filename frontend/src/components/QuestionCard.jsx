@@ -6,6 +6,8 @@ const QuestionCard = ({
   showResult,
   isCorrect,
   correctAnswerIndex,
+  correctAnswerText, // 🆕 NEW: From API response
+  explanation, // 🆕 NEW: From API response
   onAnswerSelect,
   onSubmitAnswer,
   onNextQuestion,
@@ -154,11 +156,34 @@ const QuestionCard = ({
               }`}>
                 {isCorrect 
                   ? 'Great job! You got it right.' 
-                  : `The correct answer is: ${question.options[correctAnswerIndex]}`
+                  : `The correct answer is: ${correctAnswerText || question.options[correctAnswerIndex]}`
                 }
               </p>
             </div>
           </div>
+
+          {/* 🆕 NEW: Explanation Section */}
+          {explanation && explanation.trim().length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-start space-x-2">
+                <div className="flex-shrink-0 mt-0.5">
+                  <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-1">
+                    💡 Explanation:
+                  </h4>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {explanation}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -204,6 +229,15 @@ const QuestionCard = ({
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">
             💡 Select an answer and click Submit to continue
+          </p>
+        </div>
+      )}
+
+      {/* 🆕 NEW: Study Tip for explanations */}
+      {showResult && explanation && explanation.trim().length > 0 && (
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-500 italic">
+            📚 Study tip: Read the explanation above to strengthen your understanding!
           </p>
         </div>
       )}

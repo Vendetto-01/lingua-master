@@ -59,6 +59,22 @@ export const questionsAPI = {
       }
       
       const response = await api.get('/questions/random', { params })
+      
+      // 🔍 VALIDATION: Check if questions have required new fields
+      if (response.data.success && response.data.questions) {
+        response.data.questions.forEach((question, index) => {
+          // Validate correct_answer_index exists
+          if (question.correct_answer_index === undefined || question.correct_answer_index === null) {
+            console.warn(`Question ${index + 1} missing correct_answer_index:`, question.id)
+          }
+          
+          // Log if explanation is missing (not critical, but good to know)
+          if (!question.explanation) {
+            console.info(`Question ${question.id} has no explanation`)
+          }
+        })
+      }
+      
       return response.data
     } catch (error) {
       throw error
@@ -75,13 +91,33 @@ export const questionsAPI = {
     }
   },
 
-  // Check answer for a specific question
+  // Check answer for a specific question - 🆕 UPDATED to handle new response format
   checkAnswer: async (questionId, selectedIndex) => {
     try {
       const response = await api.post('/questions/check', {
         questionId,
         selectedIndex
       })
+      
+      // 🔍 VALIDATION: Ensure response has required fields
+      const data = response.data
+      if (data.success) {
+        // Validate required fields from new API response
+        const requiredFields = ['isCorrect', 'correctAnswerIndex', 'correctAnswerText']
+        const missingFields = requiredFields.filter(field => data[field] === undefined)
+        
+        if (missingFields.length > 0) {
+          console.error('Missing required fields in checkAnswer response:', missingFields)
+        }
+        
+        // 🆕 NEW FIELDS available in response:
+        // - correctAnswerLetter: Original letter (A, B, C, D)
+        // - explanation: Answer explanation (if available)
+        if (data.explanation) {
+          console.info('Explanation available for question:', questionId)
+        }
+      }
+      
       return response.data
     } catch (error) {
       throw error
@@ -191,6 +227,41 @@ export const courseUtils = {
       return 'general'
     }
     return `difficulty-${difficulty}`
+  }
+}
+
+// 🆕 NEW: Question utilities for handling new question format
+export const questionUtils = {
+  // Validate question object has required fields
+  validateQuestion: (question) => {
+    const requiredFields = [
+      'id', 'question_text', 'options', 'correct_answer_index'
+    ]
+    
+    return requiredFields.every(field => question[field] !== undefined)
+  },
+
+  // Get correct answer text from question
+  getCorrectAnswerText: (question) => {
+    if (!question.options || question.correct_answer_index === undefined) {
+      return null
+    }
+    return question.options[question.correct_answer_index]
+  },
+
+  // Check if question has explanation
+  hasExplanation: (question) => {
+    return question.explanation && question.explanation.trim().length > 0
+  },
+
+  // Format question for display
+  formatQuestion: (question) => {
+    return {
+      ...question,
+      hasContext: !!question.paragraph,
+      hasExplanation: questionUtils.hasExplanation(question),
+      correctAnswerText: questionUtils.getCorrectAnswerText(question)
+    }
   }
 }
 
