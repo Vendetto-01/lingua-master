@@ -21,6 +21,24 @@ const CourseCard = ({
     stats = null
   } = course
 
+  // EMOJI FIX: Eğer course.icon çince karakter ise, difficultyLevel'a göre düzelt
+  const getFixedIcon = () => {
+    // Eğer icon çince/japonca karakter ise ve difficultyLevel varsa
+    if (difficultyLevel && (icon.includes('口') || icon.includes('識') || icon.includes('櫨') || icon.includes('決'))) {
+      return difficultyUtils.getIcon(difficultyLevel);
+    }
+    // Manuel olarak bilinen bozuk iconları düzelt
+    if (icon === '口識' || icon === '識') return '🎯'; // Intermediate
+    if (icon === '口櫨' || icon === '櫨') return '🚀'; // Advanced
+    if (icon === '決') return '🌈'; // Mixed
+    if (icon === '験') return '🌱'; // Beginner
+    
+    // Normal emoji ise olduğu gibi döndür
+    return icon;
+  }
+
+  const displayIcon = getFixedIcon();
+
   return (
     <div
       className={`card-elevated transition-all duration-300 relative ${
@@ -42,7 +60,7 @@ const CourseCard = ({
         <div className={`text-6xl mb-4 transition-transform duration-300 ${
           isActive ? 'hover:scale-110' : ''
         }`}>
-          {icon}
+          {displayIcon}
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
         <p className="text-gray-600 leading-relaxed">{description}</p>
@@ -57,7 +75,7 @@ const CourseCard = ({
               <div className="text-xs text-blue-600 uppercase tracking-wide">Completed</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">{stats.accuracy || '-%'}</div>
+              <div className="text-2xl font-bold text-green-600">{stats.accuracy || '0%'}</div>
               <div className="text-xs text-green-600 uppercase tracking-wide">Accuracy</div>
             </div>
           </div>
@@ -242,7 +260,7 @@ const CourseCard = ({
           )}
           {id.startsWith('difficulty-') && difficultyLevel === 'advanced' && (
             <p className="text-xs text-gray-500 italic">
-              "Ready for the challenge? Let's go! 🔥"
+              "Ready for the challenge? Let's go! 🚀"
             </p>
           )}
         </div>
