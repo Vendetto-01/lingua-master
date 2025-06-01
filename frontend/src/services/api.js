@@ -1,5 +1,5 @@
-import axios from 'axios'
-import { getAuthToken } from '../config/supabase'
+import axios from 'axios';
+import { getAuthToken } from '../config/supabase';
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -8,56 +8,56 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-})
+});
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await getAuthToken()
+      const token = await getAuthToken();
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`
+        config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error('Error getting auth token:', error)
+      console.error('Error getting auth token:', error);
     }
-    return config
+    return config;
   },
   (error) => {
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error('Unauthorized access - redirecting to login')
+      console.error('Unauthorized access - redirecting to login');
       // You can dispatch a logout action here if using context/redux
+      // Example: window.location.href = '/auth'; // veya daha iyi bir yönlendirme
     }
 
-    const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred'
+    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
     return Promise.reject({
       message: errorMessage,
       status: error.response?.status,
       originalError: error
-    })
+    });
   }
-)
+);
 
 // API service functions
 export const questionsAPI = {
   getRandomQuestions: async (limit = 10, difficulty = null) => {
     try {
-      const params = { limit }
+      const params = { limit };
       if (difficulty && difficulty !== 'mixed') {
-        params.difficulty = difficulty
+        params.difficulty = difficulty;
       }
 
-      const response = await api.get('/questions/random', { params })
+      const response = await api.get('/questions/random', { params });
 
-      // VALIDATION: Check if questions have required new fields (options as objects)
       if (response.data.success && response.data.questions) {
         response.data.questions.forEach((question, index) => {
           if (!question.options || !Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || !opt.text || !opt.originalLetter)) {
@@ -66,82 +66,111 @@ export const questionsAPI = {
           if (!question.correct_answer_letter_from_db) {
             console.warn(`Question ${index + 1} (ID: ${question.id}) missing correct_answer_letter_from_db.`);
           }
-          if (!question.explanation && question.explanation !== '') { // Allow empty string for explanation
+          if (!question.explanation && question.explanation !== '') {
              console.info(`Question ${question.id} has no explanation`);
           }
         });
       }
-      return response.data
+      return response.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   },
 
   getDifficultyLevels: async () => {
     try {
-      const response = await api.get('/questions/difficulties')
-      return response.data
+      const response = await api.get('/questions/difficulties');
+      return response.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   },
 
-  // UPDATED to send selectedOriginalLetter instead of selectedIndex
   checkAnswer: async (questionId, selectedOriginalLetter) => {
     try {
       const response = await api.post('/questions/check', {
         questionId,
-        selectedOriginalLetter // Changed from selectedIndex
-      })
+        selectedOriginalLetter
+      });
 
-      // VALIDATION: Ensure response has required fields from new API response
-      const data = response.data
+      const data = response.data;
       if (data.success) {
-        const requiredFields = ['isCorrect', 'correctOriginalLetter', 'correctAnswerText']
-        const missingFields = requiredFields.filter(field => data[field] === undefined)
+        const requiredFields = ['isCorrect', 'correctOriginalLetter', 'correctAnswerText'];
+        const missingFields = requiredFields.filter(field => data[field] === undefined);
 
         if (missingFields.length > 0) {
-          console.error('Missing required fields in checkAnswer response:', missingFields)
-          // Potentially throw an error or return a modified error object
+          console.error('Missing required fields in checkAnswer response:', missingFields);
         }
-
-        if (data.explanation === undefined) { // Explanation can be null or empty string
-          console.info('Explanation not present in checkAnswer response for question:', questionId)
+        if (data.explanation === undefined) {
+          console.info('Explanation not present in checkAnswer response for question:', questionId);
         }
       }
-      return response.data
+      return response.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   },
 
-  getPreviousQuestions: async () => {
+  getPreviousQuestions: async () => { // Bu fonksiyon Learning History için güncellenecek
     try {
-      const response = await api.get('/questions/previous')
-      return response.data
+      const response = await api.get('/questions/previous'); // Backend'de bu endpoint'i henüz tam olarak geliştirmedik
+      return response.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   },
 
-  getIncorrectQuestions: async () => {
+  getIncorrectQuestions: async () => { // Bu fonksiyon Weakness Training için güncellenecek
     try {
-      const response = await api.get('/questions/incorrect')
-      return response.data
+      const response = await api.get('/questions/incorrect'); // Backend'de bu endpoint'i henüz tam olarak geliştirmedik
+      return response.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   },
 
-  getUserStats: async () => {
+  // getUserStats fonksiyonu artık userStatsAPI altında daha spesifik fonksiyonlarla değiştirilecek.
+  // getUserStats: async () => {
+  //   try {
+  //     const response = await api.get('/questions/stats'); // Bu endpoint backend'de değişecek
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+};
+
+// YENİ: User Stats API fonksiyonları
+export const userStatsAPI = {
+  recordQuizSession: async (sessionDetails) => {
     try {
-      const response = await api.get('/questions/stats')
-      return response.data
+      const response = await api.post('/users/session', sessionDetails);
+      return response.data;
     } catch (error) {
-      throw error
+      console.error('Error recording quiz session:', error.message, error.originalError?.response?.data);
+      throw error;
+    }
+  },
+  getUserDashboardStats: async () => {
+    try {
+      const response = await api.get('/users/dashboard-stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error.message, error.originalError?.response?.data);
+      throw error;
+    }
+  },
+  getUserCourseStats: async () => {
+    try {
+      const response = await api.get('/users/course-stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching course stats:', error.message, error.originalError?.response?.data);
+      throw error;
     }
   }
-}
+};
+
 
 // Difficulty level utilities
 export const difficultyUtils = {
@@ -151,17 +180,17 @@ export const difficultyUtils = {
       'intermediate': 'Intermediate',
       'advanced': 'Advanced',
       'mixed': 'Mixed Levels'
-    }
-    return names[difficulty] || difficulty
+    };
+    return names[difficulty] || difficulty;
   },
   getIcon: (difficulty) => {
     const icons = {
-      'beginner': '🌱',
-      'intermediate': '🎯',
-      'advanced': '🔥',
-      'mixed': '🌈'
-    }
-    return icons[difficulty] || '📚'
+      'beginner': '験',
+      'intermediate': '識',
+      'advanced': '櫨',
+      'mixed': '決'
+    };
+    return icons[difficulty] || '答';
   },
   getColorClass: (difficulty) => {
     const colors = {
@@ -169,8 +198,8 @@ export const difficultyUtils = {
       'intermediate': 'text-blue-600 bg-blue-100',
       'advanced': 'text-red-600 bg-red-100',
       'mixed': 'text-purple-600 bg-purple-100'
-    }
-    return colors[difficulty] || 'text-gray-600 bg-gray-100'
+    };
+    return colors[difficulty] || 'text-gray-600 bg-gray-100';
   },
   getDescription: (difficulty) => {
     const descriptions = {
@@ -178,10 +207,10 @@ export const difficultyUtils = {
       'intermediate': 'Good for building stronger language skills',
       'advanced': 'Challenge yourself with complex vocabulary',
       'mixed': 'Questions from all difficulty levels'
-    }
-    return descriptions[difficulty] || 'Vocabulary questions'
+    };
+    return descriptions[difficulty] || 'Vocabulary questions';
   }
-}
+};
 
 // Course type utilities
 export const courseUtils = {
@@ -191,25 +220,25 @@ export const courseUtils = {
         type: 'difficulty',
         difficulty: courseType.replace('difficulty-', ''),
         isGeneral: false
-      }
+      };
     }
+    // 'weakness-training' gibi özel türleri de buraya ekleyebiliriz ileride.
     return {
-      type: 'general',
+      type: 'general', // 'general' veya bilinmeyenleri 'mixed' kabul edelim
       difficulty: 'mixed',
       isGeneral: true
-    }
+    };
   },
   generateCourseType: (difficulty) => {
-    if (difficulty === 'mixed') {
-      return 'general'
+    if (difficulty === 'mixed' || difficulty === 'Mixed Levels') { // 'Mixed Levels' kontrolü eklendi
+      return 'general';
     }
-    return `difficulty-${difficulty}`
+    return `difficulty-${difficulty}`;
   }
-}
+};
 
 // Question utilities
 export const questionUtils = {
-  // Validate question object has required fields
   validateQuestion: (question) => {
     const requiredFields = [
       'id', 'question_text', 'options', 'correct_answer_letter_from_db'
@@ -218,8 +247,6 @@ export const questionUtils = {
     if (!Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || typeof opt.text !== 'string' || typeof opt.originalLetter !== 'string')) return false;
     return true;
   },
-
-  // Get correct answer text from question object (using the originalLetter and options array)
   getCorrectAnswerTextFromProcessedQuestion: (question) => {
     if (!question || !question.options || !question.correct_answer_letter_from_db) {
       return null;
@@ -227,29 +254,28 @@ export const questionUtils = {
     const correctOption = question.options.find(opt => opt.originalLetter === question.correct_answer_letter_from_db);
     return correctOption ? correctOption.text : null;
   },
-
   hasExplanation: (question) => {
-    return question.explanation && question.explanation.trim().length > 0
+    return question.explanation && question.explanation.trim().length > 0;
   },
-
   formatQuestion: (question) => {
     return {
       ...question,
       hasContext: !!question.paragraph,
       hasExplanation: questionUtils.hasExplanation(question),
-      // correctAnswerText will now be more reliably set in QuizPage from API response
-    }
+    };
   }
-}
+};
 
 // Health check function
 export const healthCheck = async () => {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/health`)
-    return response.data
+    // baseURL'i doğrudan kullanmak yerine, axios'un kendi instance'ı dışındaki bir çağrı için tam URL oluşturuyoruz.
+    const healthCheckUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '/health');
+    const response = await axios.get(healthCheckUrl);
+    return response.data;
   } catch (error) {
-    throw error
+    throw error;
   }
-}
+};
 
-export default api
+export default api;

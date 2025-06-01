@@ -3,9 +3,11 @@ const router = express.Router();
 
 // Import route modules
 const questionsRoutes = require('./questions');
+const userRoutes = require('./user'); // Yeni eklenen satır
 
 // API Routes
 router.use('/questions', questionsRoutes);
+router.use('/users', userRoutes); // Yeni eklenen satır (endpoint'i /api/users/... olacak)
 
 // API info endpoint
 router.get('/', (req, res) => {
@@ -30,13 +32,34 @@ router.get('/', (req, res) => {
           description: 'Check if selected answer is correct',
           body: {
             questionId: 'ID of the question (required)',
-            selectedIndex: 'Index of selected answer (required)'
+            selectedOriginalLetter: 'Original letter of selected answer (required)' // Güncellendi
           },
           authentication: 'Bearer token required'
         },
         'GET /api/questions/previous': 'Get previously answered questions (coming soon)',
         'GET /api/questions/incorrect': 'Get incorrectly answered questions (coming soon)',
-        'GET /api/questions/stats': 'Get user quiz statistics (coming soon)'
+        'GET /api/questions/stats': 'Get user quiz statistics (coming soon - bu /api/users/dashboard-stats ve /api/users/course-stats ile değişecek)'
+      },
+      users: { // Yeni eklendi
+        'POST /api/users/session': {
+            description: 'Record a completed quiz session and update user stats.',
+            authentication: 'Bearer token required',
+            body: {
+                course_type: 'String (e.g., general, difficulty-beginner)',
+                score_correct: 'Number',
+                score_total: 'Number',
+                duration_seconds: 'Number (optional)',
+                questions_answered_details: 'Array of { question_id, selected_original_letter, is_correct }'
+            }
+        },
+        'GET /api/users/dashboard-stats': {
+            description: 'Get user stats for the dashboard (streak, completed today, total points).',
+            authentication: 'Bearer token required'
+        },
+        'GET /api/users/course-stats': {
+            description: 'Get user stats for each course (completed count, accuracy).',
+            authentication: 'Bearer token required'
+        }
       }
     },
     features: {
@@ -58,12 +81,7 @@ router.get('/', (req, res) => {
       ]
     },
     authentication: 'Bearer token required for all endpoints',
-    database: {
-      questions: {
-        fields: ['id', 'word_id', 'paragraph', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'difficulty', 'is_active'],
-        filters: ['difficulty', 'is_active']
-      }
-    }
+    // database kısmı artık daha dinamik olduğu için genel bir bilgi verilebilir veya kaldırılabilir.
   });
 });
 
