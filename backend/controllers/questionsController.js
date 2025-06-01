@@ -31,22 +31,34 @@ const shuffleOptions = (question) => {
     question_text: question.question_text,
     options: shuffledOptions.map(option => option.text),
     correct_answer_index: correctIndex,
+    difficulty: question.difficulty,
     created_at: question.created_at,
     updated_at: question.updated_at
   };
 };
 
-// Get random questions for general quiz
+// Get random questions for general quiz or by difficulty
 const getRandomQuestions = async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    const { limit = 10, difficulty } = req.query;
     
-    // Get random questions from Supabase
-    const { data: questions, error } = await supabase
+    // Build query with filters
+    let query = supabase
       .from('questions')
       .select('*')
-      .order('id', { ascending: false }) // This will be randomized better later
+      .eq('is_active', true); // Only get active questions
+    
+    // Add difficulty filter if specified
+    if (difficulty && difficulty !== 'mixed') {
+      query = query.eq('difficulty', difficulty);
+    }
+    
+    // Add random ordering and limit
+    query = query
+      .order('id', { ascending: false }) // This will be improved with true randomization
       .limit(parseInt(limit));
+
+    const { data: questions, error } = await query;
 
     if (error) {
       console.error('Database error:', error);
@@ -59,7 +71,7 @@ const getRandomQuestions = async (req, res) => {
     if (!questions || questions.length === 0) {
       return res.status(404).json({ 
         error: 'No questions found',
-        message: 'No questions available in the database' 
+        message: `No ${difficulty ? difficulty + ' difficulty' : ''} questions available in the database` 
       });
     }
 
@@ -70,6 +82,7 @@ const getRandomQuestions = async (req, res) => {
     res.json({
       success: true,
       count: processedQuestions.length,
+      difficulty: difficulty || 'mixed',
       questions: processedQuestions
     });
 
@@ -78,6 +91,55 @@ const getRandomQuestions = async (req, res) => {
     res.status(500).json({ 
       error: 'Server error',
       message: 'An unexpected error occurred while fetching questions' 
+    });
+  }
+};
+
+// Get available difficulty levels
+const getDifficultyLevels = async (req, res) => {
+  try {
+    const { data: difficulties, error } = await supabase
+      .from('questions')
+      .select('difficulty')
+      .eq('is_active', true)
+      .not('difficulty', 'is', null);
+
+    if (error) {
+      console.error('Database error:', error);
+      return res.status(500).json({ 
+        error: 'Database error',
+        message: 'Failed to fetch difficulty levels' 
+      });
+    }
+
+    // Get unique difficulty levels and count questions for each
+    const uniqueDifficulties = [...new Set(difficulties.map(d => d.difficulty))];
+    
+    const difficultyStats = await Promise.all(
+      uniqueDifficulties.map(async (difficulty) => {
+        const { count } = await supabase
+          .from('questions')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true)
+          .eq('difficulty', difficulty);
+        
+        return {
+          level: difficulty,
+          count: count || 0
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      difficulties: difficultyStats
+    });
+
+  } catch (error) {
+    console.error('Get difficulty levels error:', error);
+    res.status(500).json({ 
+      error: 'Server error',
+      message: 'An unexpected error occurred while fetching difficulty levels' 
     });
   }
 };
@@ -99,12 +161,13 @@ const checkAnswer = async (req, res) => {
       .from('questions')
       .select('*')
       .eq('id', questionId)
+      .eq('is_active', true) // Only check active questions
       .single();
 
     if (error || !question) {
       return res.status(404).json({ 
         error: 'Question not found',
-        message: 'The specified question could not be found' 
+        message: 'The specified question could not be found or is not active' 
       });
     }
 
@@ -116,7 +179,8 @@ const checkAnswer = async (req, res) => {
       success: true,
       isCorrect,
       correctAnswerIndex: processedQuestion.correct_answer_index,
-      correctAnswerText: processedQuestion.options[processedQuestion.correct_answer_index]
+      correctAnswerText: processedQuestion.options[processedQuestion.correct_answer_index],
+      difficulty: question.difficulty
     });
 
   } catch (error) {
@@ -130,5 +194,6 @@ const checkAnswer = async (req, res) => {
 
 module.exports = {
   getRandomQuestions,
+  getDifficultyLevels,
   checkAnswer
 };

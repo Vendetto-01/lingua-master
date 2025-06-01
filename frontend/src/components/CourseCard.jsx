@@ -1,4 +1,5 @@
 import React from 'react'
+import { difficultyUtils } from '../services/api'
 
 const CourseCard = ({
   course,
@@ -15,6 +16,8 @@ const CourseCard = ({
     isActive,
     difficulty,
     questionsCount,
+    difficultyLevel, // New: actual difficulty level for API
+    features = [],
     stats = null
   } = course
 
@@ -30,7 +33,7 @@ const CourseCard = ({
       {/* Coming Soon Badge */}
       {!isActive && (
         <div className="absolute top-4 right-4 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full font-medium shadow-sm">
-          Coming Soon
+          {questionsCount === 'Your History' || questionsCount === 'Mistakes Only' ? 'Coming Soon' : 'No Questions'}
         </div>
       )}
 
@@ -66,7 +69,8 @@ const CourseCard = ({
         <div className="flex justify-between items-center text-sm">
           <span className="text-gray-500 font-medium">Difficulty:</span>
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            difficulty === 'Mixed' ? 'bg-blue-100 text-blue-700' :
+            difficultyLevel ? difficultyUtils.getColorClass(difficultyLevel) :
+            difficulty === 'Mixed' || difficulty === 'Mixed Levels' ? 'bg-purple-100 text-purple-700' :
             difficulty === 'Your Level' ? 'bg-green-100 text-green-700' :
             difficulty === 'Challenging' ? 'bg-red-100 text-red-700' :
             'bg-gray-100 text-gray-700'
@@ -98,7 +102,23 @@ const CourseCard = ({
       </div>
 
       {/* Features List */}
-      {isActive && (
+      {isActive && features.length > 0 && (
+        <div className="mb-6">
+          <ul className="space-y-2 text-sm text-gray-600">
+            {features.map((feature, index) => (
+              <li key={index} className="flex items-center">
+                <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Default Features for Legacy Support */}
+      {isActive && features.length === 0 && (
         <div className="mb-6">
           <ul className="space-y-2 text-sm text-gray-600">
             {id === 'general' && (
@@ -120,6 +140,28 @@ const CourseCard = ({
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   Multiple difficulty levels
+                </li>
+              </>
+            )}
+            {id.startsWith('difficulty-') && (
+              <>
+                <li className="flex items-center">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Focused difficulty level
+                </li>
+                <li className="flex items-center">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Targeted learning
+                </li>
+                <li className="flex items-center">
+                  <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Progressive skill building
                 </li>
               </>
             )}
@@ -180,12 +222,29 @@ const CourseCard = ({
         </span>
       </button>
 
-      {/* Motivational Quote for Active Cards */}
-      {isActive && id === 'general' && (
+      {/* Motivational Quotes */}
+      {isActive && (
         <div className="mt-4 text-center">
-          <p className="text-xs text-gray-500 italic">
-            "Every question is a step towards mastery! 🚀"
-          </p>
+          {id === 'general' && (
+            <p className="text-xs text-gray-500 italic">
+              "Every question is a step towards mastery! 🚀"
+            </p>
+          )}
+          {id.startsWith('difficulty-') && difficultyLevel === 'beginner' && (
+            <p className="text-xs text-gray-500 italic">
+              "Great choice for building foundations! 🌱"
+            </p>
+          )}
+          {id.startsWith('difficulty-') && difficultyLevel === 'intermediate' && (
+            <p className="text-xs text-gray-500 italic">
+              "Perfect for advancing your skills! 🎯"
+            </p>
+          )}
+          {id.startsWith('difficulty-') && difficultyLevel === 'advanced' && (
+            <p className="text-xs text-gray-500 italic">
+              "Ready for the challenge? Let's go! 🔥"
+            </p>
+          )}
         </div>
       )}
     </div>
