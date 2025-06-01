@@ -274,11 +274,7 @@ const QuizPage = () => {
                 <div className="flex items-center">
                   {icon}
                   <span className="flex-1">{option.text}</span>
-                  {showResult && index === displayCorrectOptionIndex && answerDetails.correctOriginalLetter && (
-                    <span className="ml-2 text-xs bg-success-500 text-white px-2 py-1 rounded">
-                      Original: {answerDetails.correctOriginalLetter}
-                    </span>
-                  )}
+                  
                 </div>
               </button>
             )
