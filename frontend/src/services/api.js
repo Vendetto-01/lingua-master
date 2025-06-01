@@ -193,12 +193,12 @@ export const difficultyUtils = {
   },
   getIcon: (difficulty) => {
     const icons = {
-      'beginner': '験',
-      'intermediate': '識',
-      'advanced': '櫨',
-      'mixed': '決'
+      'beginner': '🌱',
+      'intermediate': '🎯',
+      'advanced': '🚀',
+      'mixed': '🌈'
     };
-    return icons[difficulty] || '答';
+    return icons[difficulty] || '📚';
   },
   getColorClass: (difficulty) => {
     const colors = {
