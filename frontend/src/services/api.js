@@ -33,12 +33,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
       console.error('Unauthorized access - redirecting to login')
       // You can dispatch a logout action here if using context/redux
     }
-    
-    // Return a more user-friendly error object
+
     const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred'
     return Promise.reject({
       message: errorMessage,
@@ -50,38 +48,35 @@ api.interceptors.response.use(
 
 // API service functions
 export const questionsAPI = {
-  // Get random questions for quiz with optional difficulty filter
   getRandomQuestions: async (limit = 10, difficulty = null) => {
     try {
       const params = { limit }
       if (difficulty && difficulty !== 'mixed') {
         params.difficulty = difficulty
       }
-      
+
       const response = await api.get('/questions/random', { params })
-      
-      // 🔍 VALIDATION: Check if questions have required new fields
+
+      // VALIDATION: Check if questions have required new fields (options as objects)
       if (response.data.success && response.data.questions) {
         response.data.questions.forEach((question, index) => {
-          // Validate correct_answer_index exists
-          if (question.correct_answer_index === undefined || question.correct_answer_index === null) {
-            console.warn(`Question ${index + 1} missing correct_answer_index:`, question.id)
+          if (!question.options || !Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || !opt.text || !opt.originalLetter)) {
+            console.warn(`Question ${index + 1} (ID: ${question.id}) has invalid options format. Expected array of {text, originalLetter}. Received:`, question.options);
           }
-          
-          // Log if explanation is missing (not critical, but good to know)
-          if (!question.explanation) {
-            console.info(`Question ${question.id} has no explanation`)
+          if (!question.correct_answer_letter_from_db) {
+            console.warn(`Question ${index + 1} (ID: ${question.id}) missing correct_answer_letter_from_db.`);
           }
-        })
+          if (!question.explanation && question.explanation !== '') { // Allow empty string for explanation
+             console.info(`Question ${question.id} has no explanation`);
+          }
+        });
       }
-      
       return response.data
     } catch (error) {
       throw error
     }
   },
 
-  // Get available difficulty levels with question counts
   getDifficultyLevels: async () => {
     try {
       const response = await api.get('/questions/difficulties')
@@ -91,40 +86,35 @@ export const questionsAPI = {
     }
   },
 
-  // Check answer for a specific question - 🆕 UPDATED to handle new response format
-  checkAnswer: async (questionId, selectedIndex) => {
+  // UPDATED to send selectedOriginalLetter instead of selectedIndex
+  checkAnswer: async (questionId, selectedOriginalLetter) => {
     try {
       const response = await api.post('/questions/check', {
         questionId,
-        selectedIndex
+        selectedOriginalLetter // Changed from selectedIndex
       })
-      
-      // 🔍 VALIDATION: Ensure response has required fields
+
+      // VALIDATION: Ensure response has required fields from new API response
       const data = response.data
       if (data.success) {
-        // Validate required fields from new API response
-        const requiredFields = ['isCorrect', 'correctAnswerIndex', 'correctAnswerText']
+        const requiredFields = ['isCorrect', 'correctOriginalLetter', 'correctAnswerText']
         const missingFields = requiredFields.filter(field => data[field] === undefined)
-        
+
         if (missingFields.length > 0) {
           console.error('Missing required fields in checkAnswer response:', missingFields)
+          // Potentially throw an error or return a modified error object
         }
-        
-        // 🆕 NEW FIELDS available in response:
-        // - correctAnswerLetter: Original letter (A, B, C, D)
-        // - explanation: Answer explanation (if available)
-        if (data.explanation) {
-          console.info('Explanation available for question:', questionId)
+
+        if (data.explanation === undefined) { // Explanation can be null or empty string
+          console.info('Explanation not present in checkAnswer response for question:', questionId)
         }
       }
-      
       return response.data
     } catch (error) {
       throw error
     }
   },
 
-  // Get previously answered questions (placeholder)
   getPreviousQuestions: async () => {
     try {
       const response = await api.get('/questions/previous')
@@ -134,7 +124,6 @@ export const questionsAPI = {
     }
   },
 
-  // Get incorrectly answered questions (placeholder)
   getIncorrectQuestions: async () => {
     try {
       const response = await api.get('/questions/incorrect')
@@ -144,7 +133,6 @@ export const questionsAPI = {
     }
   },
 
-  // Get user quiz statistics (placeholder)
   getUserStats: async () => {
     try {
       const response = await api.get('/questions/stats')
@@ -157,40 +145,33 @@ export const questionsAPI = {
 
 // Difficulty level utilities
 export const difficultyUtils = {
-  // Get difficulty display name
   getDisplayName: (difficulty) => {
     const names = {
       'beginner': 'Beginner',
-      'intermediate': 'Intermediate', 
+      'intermediate': 'Intermediate',
       'advanced': 'Advanced',
       'mixed': 'Mixed Levels'
     }
     return names[difficulty] || difficulty
   },
-
-  // Get difficulty icon
   getIcon: (difficulty) => {
     const icons = {
       'beginner': '🌱',
-      'intermediate': '🎯', 
+      'intermediate': '🎯',
       'advanced': '🔥',
       'mixed': '🌈'
     }
     return icons[difficulty] || '📚'
   },
-
-  // Get difficulty color class for Tailwind
   getColorClass: (difficulty) => {
     const colors = {
       'beginner': 'text-green-600 bg-green-100',
       'intermediate': 'text-blue-600 bg-blue-100',
-      'advanced': 'text-red-600 bg-red-100', 
+      'advanced': 'text-red-600 bg-red-100',
       'mixed': 'text-purple-600 bg-purple-100'
     }
     return colors[difficulty] || 'text-gray-600 bg-gray-100'
   },
-
-  // Get difficulty description
   getDescription: (difficulty) => {
     const descriptions = {
       'beginner': 'Perfect for learning basic vocabulary',
@@ -204,7 +185,6 @@ export const difficultyUtils = {
 
 // Course type utilities
 export const courseUtils = {
-  // Parse course type and extract difficulty
   parseCourseType: (courseType) => {
     if (courseType.startsWith('difficulty-')) {
       return {
@@ -213,15 +193,12 @@ export const courseUtils = {
         isGeneral: false
       }
     }
-    
     return {
       type: 'general',
       difficulty: 'mixed',
       isGeneral: true
     }
   },
-
-  // Generate course type string from difficulty
   generateCourseType: (difficulty) => {
     if (difficulty === 'mixed') {
       return 'general'
@@ -230,37 +207,37 @@ export const courseUtils = {
   }
 }
 
-// 🆕 NEW: Question utilities for handling new question format
+// Question utilities
 export const questionUtils = {
   // Validate question object has required fields
   validateQuestion: (question) => {
     const requiredFields = [
-      'id', 'question_text', 'options', 'correct_answer_index'
-    ]
-    
-    return requiredFields.every(field => question[field] !== undefined)
+      'id', 'question_text', 'options', 'correct_answer_letter_from_db'
+    ];
+    if (!requiredFields.every(field => question[field] !== undefined)) return false;
+    if (!Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || typeof opt.text !== 'string' || typeof opt.originalLetter !== 'string')) return false;
+    return true;
   },
 
-  // Get correct answer text from question
-  getCorrectAnswerText: (question) => {
-    if (!question.options || question.correct_answer_index === undefined) {
-      return null
+  // Get correct answer text from question object (using the originalLetter and options array)
+  getCorrectAnswerTextFromProcessedQuestion: (question) => {
+    if (!question || !question.options || !question.correct_answer_letter_from_db) {
+      return null;
     }
-    return question.options[question.correct_answer_index]
+    const correctOption = question.options.find(opt => opt.originalLetter === question.correct_answer_letter_from_db);
+    return correctOption ? correctOption.text : null;
   },
 
-  // Check if question has explanation
   hasExplanation: (question) => {
     return question.explanation && question.explanation.trim().length > 0
   },
 
-  // Format question for display
   formatQuestion: (question) => {
     return {
       ...question,
       hasContext: !!question.paragraph,
       hasExplanation: questionUtils.hasExplanation(question),
-      correctAnswerText: questionUtils.getCorrectAnswerText(question)
+      // correctAnswerText will now be more reliably set in QuizPage from API response
     }
   }
 }
