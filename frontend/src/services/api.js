@@ -160,6 +160,22 @@ export const questionsAPI = {
       throw error;
     }
   },
+
+  submitReportQuestion: async (reportData) => {
+    try {
+      console.log('🚩 Submitting question report:', reportData);
+      // reportData should contain { word_id, report_reason, report_details (optional) }
+      const response = await api.post('/reports/question', reportData); // Yeni endpoint /api/reports/question olacak
+
+      if (response.data.success) {
+        console.log('✅ Report submitted successfully:', response.data.report_id);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error submitting question report:', error.message);
+      throw error;
+    }
+  },
 };
 
 // NEW: Explicit Words API (for future use)
