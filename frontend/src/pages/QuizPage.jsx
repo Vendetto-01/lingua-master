@@ -204,13 +204,13 @@ const QuizPage = () => {
     return 'text-red-600';
   };
 
-  // Raporlama için sabit seçenekler
+  // Raporlama için sabit seçenekler (İngilizce ve emojili)
   const REPORT_OPTIONS = [
-    { value: 'soru_hatali', label: 'Soru hatalı' },
-    { value: 'siklar_hatali', label: 'Şıklar hatalı' },
-    { value: 'soru_gereksiz', label: 'Soru gereksiz' },
-    { value: 'uygunsuz_icerik', label: 'Uygunsuz içerik' },
-    // { value: 'diger', label: 'Diğer' } // İleride detay alanı ile eklenebilir
+    { value: 'question_incorrect', label: 'Question is incorrect ❌' },
+    { value: 'options_incorrect', label: 'Options are incorrect 📝' },
+    { value: 'question_irrelevant', label: 'Question is irrelevant 🗑️' },
+    { value: 'inappropriate_content', label: 'Inappropriate content 🚫' },
+    { value: 'just_because', label: 'Just because I felt like it 😎' }
   ];
 
   const handleOpenReportModal = () => {
@@ -247,16 +247,16 @@ const QuizPage = () => {
       });
 
       if (response.success) {
-        setReportSuccessMessage('Raporunuz başarıyla gönderildi. Teşekkür ederiz!');
+        setReportSuccessMessage('Your report has been submitted successfully. Thank you!');
         setTimeout(() => {
           handleCloseReportModal();
         }, 2500); // Mesajı gösterdikten sonra modalı kapat
       } else {
-        setReportError(response.message || 'Rapor gönderilemedi. Lütfen tekrar deneyin.');
+        setReportError(response.message || 'Failed to submit report. Please try again.');
       }
     } catch (err) {
       console.error('Error submitting report:', err);
-      setReportError(err.message || 'Rapor gönderilirken bir hata oluştu.');
+      setReportError(err.message || 'An error occurred while submitting the report.');
     } finally {
       setReportSubmitting(false);
     }
@@ -381,16 +381,16 @@ const QuizPage = () => {
             </div>
 
             {/* Rapor Et Butonu */}
-            {currentQuestion && !showResult && (
+            {currentQuestion && (
               <div className="mt-6 mb-2 text-center sm:text-right">
                 <button
                   onClick={handleOpenReportModal}
                   className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-                  title="Bu soruyu rapor et"
+                  title="Report this question"
                   disabled={submitting || reportSubmitting}
                 >
                   {/* <FlagIcon className="h-4 w-4 mr-1.5 text-gray-500" aria-hidden="true" /> */}
-                  ⚠️ Soruyu Rapor Et
+                  ⚠️ Report Question
                 </button>
               </div>
             )}
@@ -446,7 +446,7 @@ const QuizPage = () => {
           <div className="bg-white rounded-lg shadow-xl p-5 sm:p-6 w-full max-w-lg transform transition-all">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
-                Soruyu Rapor Et
+                Report Question
               </h3>
               <button
                 type="button"
@@ -455,7 +455,7 @@ const QuizPage = () => {
                 className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
-                <span className="sr-only">Kapat</span>
+                <span className="sr-only">Close</span>
               </button>
             </div>
 
@@ -465,11 +465,11 @@ const QuizPage = () => {
             {!reportSuccessMessage && (
               <form onSubmit={(e) => { e.preventDefault(); handleSubmitReport(); }}>
                 <div className="mb-4">
-                  <p className="text-sm text-gray-700 mb-1"><strong>Soru:</strong></p>
+                  <p className="text-sm text-gray-700 mb-1"><strong>Question:</strong></p>
                   <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border max-h-24 overflow-y-auto"><em>"{currentQuestion.question_text}"</em></p>
                 </div>
                 
-                <p className="text-sm font-medium text-gray-800 mb-2">Lütfen rapor nedeninizi seçin:</p>
+                <p className="text-sm font-medium text-gray-800 mb-2">Please select a reason for your report:</p>
                 <div className="space-y-3 mb-6">
                   {REPORT_OPTIONS.map((option) => (
                     <label key={option.value} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer has-[:checked]:bg-primary-50 has-[:checked]:border-primary-300">
@@ -493,7 +493,7 @@ const QuizPage = () => {
                     disabled={reportSubmitting}
                     className="btn-secondary py-2 px-4 w-full sm:w-auto"
                   >
-                    İptal
+                    Cancel
                   </button>
                   <button
                     type="submit"
@@ -501,9 +501,9 @@ const QuizPage = () => {
                     className="btn-danger py-2 px-4 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
                   >
                     {reportSubmitting ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> Gönderiliyor...</>
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> Submitting...</>
                     ) : (
-                      'Raporu Gönder'
+                      'Submit Report'
                     )}
                   </button>
                 </div>
@@ -516,7 +516,7 @@ const QuizPage = () => {
                         onClick={handleCloseReportModal}
                         className="btn-primary py-2 px-4"
                     >
-                        Kapat
+                        Close
                     </button>
                 </div>
             )}
