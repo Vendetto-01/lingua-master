@@ -439,8 +439,7 @@ const QuizPage = () => {
             {!showResult && selectedAnswerIndex === null && (<div className="mt-4 text-center"><p className="text-sm text-gray-500">💡 Select an answer and click Submit to continue</p></div>)}
         </div>
       )}
-    </div>
-
+      {/* The extra div that was here (previously line 442) is now removed. */}
       {/* Raporlama Modal'ı */}
       {showReportModal && currentQuestion && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity z-50 flex items-center justify-center p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
