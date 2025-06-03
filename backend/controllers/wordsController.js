@@ -1,4 +1,4 @@
-// backend/controllers/wordsController.js
+// backend/controllers/wordsController.js (FIXED - Clean Question Generation)
 const supabase = require('../config/supabase');
 
 // Helper function to shuffle array
@@ -11,15 +11,9 @@ const shuffleArray = (array) => {
   return shuffled;
 };
 
-// Helper function to generate question text dynamically
-const generateQuestionText = (word, partOfSpeech, exampleSentence) => {
-  // Highlight the word in the example sentence
-  const highlightedSentence = exampleSentence.replace(
-    new RegExp(`\\b${word}\\b`, 'gi'), 
-    `**${word}**`
-  );
-  
-  return `In the sentence: "${highlightedSentence}" - What does the word "${word}" (${partOfSpeech}) mean?`;
+// UPDATED: Generate clean question text - no example sentence, no part of speech
+const generateQuestionText = (word) => {
+  return `What does the word "${word}" mean?`;
 };
 
 // Helper function to process words for frontend
@@ -49,8 +43,8 @@ const processWordForFrontend = (word) => {
     return null;
   }
 
-  // Generate dynamic question text
-  const questionText = generateQuestionText(word.word, word.part_of_speech, word.example_sentence);
+  // Generate CLEAN question text - just asks what the word means
+  const questionText = generateQuestionText(word.word);
 
   return {
     id: word.id,
@@ -59,8 +53,8 @@ const processWordForFrontend = (word) => {
     definition: word.definition,
     difficulty_level: word.difficulty_level,
     example_sentence: word.example_sentence,
-    question_text: questionText, // Generated dynamically
-    paragraph: word.example_sentence, // Use example sentence as context
+    question_text: questionText, // CLEAN: No example sentence, no part of speech
+    paragraph: word.example_sentence, // Keep for backward compatibility
     options: shuffledOptions.map(opt => ({ text: opt.text, originalLetter: opt.originalLetter })),
     correct_answer_index_for_initial_display: correctAnswerIndex,
     correct_answer_letter_from_db: 'A', // Always A since option_a is always correct
@@ -159,7 +153,7 @@ const getRandomWords = async (req, res) => {
   }
 };
 
-// Get available difficulty levels
+// Get available difficulty levels - UNCHANGED
 const getDifficultyLevels = async (req, res) => {
   try {
     const { data: difficulties, error } = await supabase
@@ -221,7 +215,7 @@ const getDifficultyLevels = async (req, res) => {
   }
 };
 
-// Check answer for a specific word
+// Check answer for a specific word - UNCHANGED
 const checkAnswer = async (req, res) => {
   try {
     const { questionId, selectedOriginalLetter } = req.body;
