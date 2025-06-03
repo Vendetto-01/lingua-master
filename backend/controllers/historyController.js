@@ -1,4 +1,4 @@
-// backend/controllers/historyController.js (UPDATED for words table)
+// backend/controllers/historyController.js (FIXED - Syntax Error Corrected)
 const supabase = require('../config/supabase');
 
 // Helper function to get the text of a specific option (A, B, C, D)
@@ -33,15 +33,14 @@ const getLearningHistory = async (req, res) => {
   const offset = (page - 1) * limit;
 
   try {
-    // UPDATED: Join with words table instead of questions table
-    // NOTE: Foreign key ilişkisini kontrol etmek için önce test sorgusu yapıyoruz
+    // Join with words table using correct table name
     let query = supabase
       .from('user_Youtubes')
       .select(`
-        id,
+        answer_id,
         selected_original_letter,
         is_correct,
-        answered_at:created_at,
+        answered_at,
         question_id,
         words!user_Youtubes_question_id_fkey (
           id,
@@ -60,32 +59,32 @@ const getLearningHistory = async (req, res) => {
 
     // Sorting
     if (sortBy === 'date_asc') {
-      query = query.order('created_at', { ascending: true });
+      query = query.order('answered_at', { ascending: true });
     } else if (sortBy === 'correctness_desc') {
-      query = query.order('is_correct', { ascending: false }).order('created_at', { ascending: false });
+      query = query.order('is_correct', { ascending: false }).order('answered_at', { ascending: false });
     } else if (sortBy === 'correctness_asc') {
-      query = query.order('is_correct', { ascending: true }).order('created_at', { ascending: false });
+      query = query.order('is_correct', { ascending: true }).order('answered_at', { ascending: false });
     } else { // date_desc (default)
-      query = query.order('created_at', { ascending: false });
+      query = query.order('answered_at', { ascending: false });
     }
 
     query = query.range(offset, offset + limit - 1);
 
-    const { data: historyData, error, count } = await query;
+    const { data: historyData, error } = await query;
 
     if (error) {
       console.error('Error fetching learning history:', error);
       
-      // If join failed, might be foreign key issue - try fallback query
+      // If join failed, try fallback query
       if (error.message && error.message.includes('foreign key')) {
         console.warn('Foreign key join failed, trying manual join...');
         
-        // Fallback: Manual join by getting user answers first, then words separately
+        // Fallback: Manual join
         const { data: userAnswers, error: answersError } = await supabase
           .from('user_Youtubes')
-          .select('id, selected_original_letter, is_correct, created_at, question_id')
+          .select('answer_id, selected_original_letter, is_correct, answered_at, question_id')
           .eq('user_id', user_id)
-          .order('created_at', { ascending: sortBy === 'date_asc' })
+          .order('answered_at', { ascending: sortBy === 'date_asc' })
           .range(offset, offset + limit - 1);
 
         if (answersError) {
@@ -116,8 +115,11 @@ const getLearningHistory = async (req, res) => {
         const combinedData = userAnswers.map(answer => {
           const wordData = wordsData.find(word => word.id === answer.question_id);
           return {
-            ...answer,
-            answered_at: answer.created_at,
+            answer_id: answer.answer_id,
+            selected_original_letter: answer.selected_original_letter,
+            is_correct: answer.is_correct,
+            answered_at: answer.answered_at,
+            question_id: answer.question_id,
             words: wordData || null
           };
         });
@@ -158,9 +160,9 @@ const processHistoryData = async (historyData, user_id, page, limit, res) => {
 
   const formattedHistory = historyData.map(item => {
     if (!item.words) {
-      console.warn(`Learning history item (id: ${item.id}) is missing word details. Question ID: ${item.question_id}`);
+      console.warn(`Learning history item (id: ${item.answer_id}) is missing word details. Question ID: ${item.question_id}`);
       return {
-        history_id: item.id,
+        history_id: item.answer_id,
         question_id: item.question_id,
         word_id: item.question_id,
         word: 'Unknown word',
@@ -170,9 +172,41 @@ const processHistoryData = async (historyData, user_id, page, limit, res) => {
         example_sentence: 'Example not available',
         question_text: 'Question text unavailable due to missing word data',
         selected_option_letter: item.selected_original_letter,
+        selected_option_text: 'Option text unavailable',
+        is_correct: item.is_correct,
+        correct_option_letter: 'A',
+        correct_option_text: 'Correct answer unavailable',
+        explanation: 'Explanation unavailable - word data missing',
+        answered_at: item.answered_at,
+        data_status: 'incomplete'
+      };
+    }
+
+    const wordDetails = item.words;
+    const selectedOptionText = getOptionText(wordDetails, item.selected_original_letter);
+    const correctOptionText = wordDetails.option_a; // In words table, option_a is always correct
+    
+    // Generate the question text dynamically
+    const questionText = generateHistoryQuestionText(
+      wordDetails.word, 
+      wordDetails.part_of_speech, 
+      wordDetails.example_sentence
+    );
+
+    return {
+      history_id: item.answer_id,
+      question_id: wordDetails.id,
+      word_id: wordDetails.id,
+      word: wordDetails.word,
+      part_of_speech: wordDetails.part_of_speech,
+      definition: wordDetails.definition,
+      difficulty_level: wordDetails.difficulty_level,
+      example_sentence: wordDetails.example_sentence,
+      question_text: questionText,
+      selected_option_letter: item.selected_original_letter,
       selected_option_text: selectedOptionText,
       is_correct: item.is_correct,
-      correct_option_letter: 'A', // Always A in words table
+      correct_option_letter: 'A',
       correct_option_text: correctOptionText,
       explanation: `"${wordDetails.word}" (${wordDetails.part_of_speech}): ${wordDetails.definition}`,
       answered_at: item.answered_at,
@@ -183,7 +217,7 @@ const processHistoryData = async (historyData, user_id, page, limit, res) => {
   // Get total count for pagination
   const { count: totalCount, error: countError } = await supabase
     .from('user_Youtubes')
-    .select('id', { count: 'exact', head: true })
+    .select('answer_id', { count: 'exact', head: true })
     .eq('user_id', user_id);
 
   if (countError) {
@@ -211,36 +245,4 @@ const processHistoryData = async (historyData, user_id, page, limit, res) => {
 
 module.exports = {
   getLearningHistory,
-};d_original_letter,
-        selected_option_text: 'Option text unavailable',
-        is_correct: item.is_correct,
-        correct_option_letter: 'A',
-        correct_option_text: 'Correct answer unavailable',
-        explanation: 'Explanation unavailable - word data missing',
-        answered_at: item.answered_at,
-        data_status: 'incomplete'
-      };
-    }
-
-    const wordDetails = item.words;
-    const selectedOptionText = getOptionText(wordDetails, item.selected_original_letter);
-    const correctOptionText = wordDetails.option_a; // In words table, option_a is always correct
-    
-    // Generate the question text dynamically
-    const questionText = generateHistoryQuestionText(
-      wordDetails.word, 
-      wordDetails.part_of_speech, 
-      wordDetails.example_sentence
-    );
-
-    return {
-      history_id: item.id,
-      question_id: wordDetails.id,
-      word_id: wordDetails.id, // Explicit word_id
-      word: wordDetails.word,
-      part_of_speech: wordDetails.part_of_speech,
-      definition: wordDetails.definition,
-      difficulty_level: wordDetails.difficulty_level,
-      example_sentence: wordDetails.example_sentence,
-      question_text: questionText,
-      selected_option_letter: item.selecte
+};
