@@ -204,7 +204,7 @@ const getDifficultyLevels = async (req, res) => {
       })
     );
 
-    // Filter out null results and add individual CEFR levels if needed
+    // Filter out null results
     const validStats = difficultyStats.filter(stat => stat && stat.count > 0);
 
     res.json({

@@ -64,7 +64,7 @@ const recordQuizSession = async (req, res) => {
         console.log('✅ Quiz session created:', sessionData.session_id);
 
         // 2. user_Youtubes tablosuna detayları kaydet
-        // NOTE: Tablo adını daha anlamlı bir şeye değiştirmeyi düşünebiliriz (user_answers gibi)
+        // NOTE: Bu tablo artık words.id'leri referans ediyor
         if (questions_answered_details && questions_answered_details.length > 0) {
             const answersToInsert = questions_answered_details.map(answer => ({
                 session_id: sessionData.session_id,
