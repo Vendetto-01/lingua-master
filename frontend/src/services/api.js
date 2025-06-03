@@ -216,6 +216,20 @@ export const questionsAPI = {
       console.error(`❌ Error removing word ${word_id} from weakness training list:`, error.message);
       throw error;
     }
+  },
+
+  getWeaknessItemsCount: async () => {
+    try {
+      console.log('📊 Fetching weakness items count.');
+      const response = await api.get('/weakness/items/count');
+      if (response.data.success) {
+        console.log(`✅ Weakness items count: ${response.data.count}`);
+      }
+      return response.data; // { success: true, count: N }
+    } catch (error) {
+      console.error('❌ Error fetching weakness items count:', error.message);
+      throw error; // Propagate error to be handled by caller
+    }
   }
 };
 

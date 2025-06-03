@@ -23,6 +23,7 @@ const HomePage = () => {
     total_questions_available: 0
   });
   const [userCourseStats, setUserCourseStats] = useState([]);
+  const [weaknessCourseActive, setWeaknessCourseActive] = useState(false); // State for Weakness Training
 
   // Load initial data on component mount
   useEffect(() => {
@@ -43,10 +44,11 @@ const HomePage = () => {
 
     try {
       // Parallel API calls for better performance
-      const [difficultyResponse, dashboardResponse, userCoursesResponse] = await Promise.all([
+      const [difficultyResponse, dashboardResponse, userCoursesResponse, weaknessCountResponse] = await Promise.all([
         questionsAPI.getDifficultyLevels(),
         userStatsAPI.getUserDashboardStats(),
-        userStatsAPI.getUserCourseStats()
+        userStatsAPI.getUserCourseStats(),
+        questionsAPI.getWeaknessItemsCount() // Fetch weakness items count
       ]);
 
       // Handle difficulty levels
@@ -74,6 +76,16 @@ const HomePage = () => {
         setUserCourseStats(userCoursesResponse.course_stats || []);
       } else {
         console.warn('Failed to load user course stats:', userCoursesResponse.message);
+      }
+
+      // Handle weakness items count
+      if (weaknessCountResponse.success && weaknessCountResponse.count > 0) {
+        setWeaknessCourseActive(true);
+      } else {
+        setWeaknessCourseActive(false);
+        if (!weaknessCountResponse.success) {
+            console.warn('Failed to load weakness items count:', weaknessCountResponse.message);
+        }
       }
 
     } catch (err) {
@@ -184,13 +196,13 @@ const HomePage = () => {
     {
       id: 'weakness-training',
       title: 'Weakness Training',
-      description: 'Focus on questions you struggled with to turn weaknesses into strengths.',
-      icon: '🎯',
-      buttonText: 'Coming Soon',
-      buttonColor: 'btn-secondary',
-      isActive: false,
-      difficulty: 'Targeted',
-      questionsCount: 'Smart Selection',
+      description: 'Focus on questions you struggled with or manually added to turn weaknesses into strengths.',
+      icon: '💪', // Updated icon
+      buttonText: weaknessCourseActive ? 'Start Training' : 'No Items Yet',
+      buttonColor: weaknessCourseActive ? 'btn-warning' : 'btn-disabled', // Use a specific color for active, and a disabled style
+      isActive: weaknessCourseActive,
+      difficulty: 'Personalized', // Updated difficulty
+      questionsCount: weaknessCourseActive ? 'Your Focus List' : 'Empty', // Dynamic count/text
       features: [
         'Practice your incorrect answers',
         'Reinforce challenging vocabulary',

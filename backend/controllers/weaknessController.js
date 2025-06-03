@@ -175,3 +175,31 @@ exports.getWeaknessTrainingQuestions = async (req, res) => {
     res.status(500).json({ success: false, message: 'An unexpected server error occurred fetching weakness questions.', details: err.message });
   }
 };
+
+// Kullanıcının zayıflık listesindeki aktif kelime sayısını getirir
+exports.getWeaknessItemsCount = async (req, res) => {
+  const user_id = req.user?.user_id || req.user?.id;
+
+  if (!user_id) {
+    return res.status(401).json({ success: false, message: 'User not authenticated.' });
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from('user_weakness_items')
+      .select('*', { count: 'exact', head: true }) // Sadece sayıyı almak için head: true
+      .eq('user_id', user_id)
+      .neq('status', 'removed_manual'); // Manuel olarak çıkarılmamış olanlar
+
+    if (error) {
+      console.error('Error fetching weakness items count:', error);
+      throw error;
+    }
+
+    res.status(200).json({ success: true, count: count || 0 });
+
+  } catch (err) {
+    console.error('Server error in getWeaknessItemsCount:', err);
+    res.status(500).json({ success: false, message: 'Failed to get weakness items count.', details: err.message });
+  }
+};

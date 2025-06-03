@@ -16,4 +16,7 @@ router.delete('/items/:word_id', weaknessController.removeWeaknessItem);
 // GET /api/weakness/questions - Kullanıcının zayıflık antrenmanı için soruları getirir
 router.get('/questions', weaknessController.getWeaknessTrainingQuestions);
 
+// GET /api/weakness/items/count - Kullanıcının zayıflık listesindeki aktif kelime sayısını getirir
+router.get('/items/count', weaknessController.getWeaknessItemsCount);
+
 module.exports = router;
