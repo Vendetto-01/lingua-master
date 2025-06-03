@@ -171,19 +171,20 @@ exports.getUserReportedQuestions = async (req, res) => {
     // Aynı word_id için birden fazla rapor varsa, en sonuncusunu (veya herhangi birini) almak yeterli olabilir.
     // Şimdilik, farklı word_id'leri olan raporları alalım.
     // Ve her word_id için bir report_id'yi de alalım ki frontend'de dismiss edilebilsin.
-    
-    // Bu sorgu, her word_id için kullanıcının gizlemediği en son raporun ID'sini alır.
-    // Daha basit bir yaklaşım: tüm gizlenmemiş raporları al, sonra word_id'leri unique yap, sonra word detaylarını çek.
-    // Ancak her word_id için bir report_id'ye ihtiyacımız var.
 
-    const { data: userReports, error: reportsError } = await supabase
+    let reportsQuery = supabase
       .from('reports')
       .select('id, word_id') // report_id as id
-      .eq('user_id', user_id) // Kullanıcının kendi raporları
-      .not('id', 'in', `(${dismissedReportIds.length > 0 ? dismissedReportIds.join(',') : 'NULL'})`); // Gizlenmemiş olanlar
+      .eq('user_id', user_id); // Kullanıcının kendi raporları
+
+    if (dismissedReportIds.length > 0) {
+      reportsQuery = reportsQuery.not('id', 'in', `(${dismissedReportIds.join(',')})`); // Gizlenmemiş olanlar
+    }
+
+    const { data: userReports, error: reportsError } = await reportsQuery;
 
     if (reportsError) {
-      console.error('Error fetching user reports:', reportsError);
+      console.error('Error fetching user reports:', reportsError); // Bu log şimdi hatanın kaynağını gösterecek
       throw reportsError;
     }
 
