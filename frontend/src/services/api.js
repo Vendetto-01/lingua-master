@@ -1,4 +1,4 @@
-// frontend/src/services/api.js
+// frontend/src/services/api.js (UPDATED for words table)
 import axios from 'axios';
 import { getAuthToken } from '../config/supabase';
 
@@ -35,8 +35,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       console.error('Unauthorized access - redirecting to login');
-      // You can dispatch a logout action here if using context/redux
-      // Example: window.location.href = '/auth'; // veya daha iyi bir yönlendirme
     }
 
     const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
@@ -48,7 +46,7 @@ api.interceptors.response.use(
   }
 );
 
-// API service functions
+// UPDATED: Words API (replaces questionsAPI but keeps same interface for compatibility)
 export const questionsAPI = {
   getRandomQuestions: async (limit = 10, difficulty = null) => {
     try {
@@ -57,18 +55,20 @@ export const questionsAPI = {
         params.difficulty = difficulty;
       }
 
-      const response = await api.get('/questions/random', { params });
+      // NEW: Use words endpoint but maintain interface compatibility
+      const response = await api.get('/words/random', { params });
 
       if (response.data.success && response.data.questions) {
         response.data.questions.forEach((question, index) => {
+          // Validate the new word-based question format
           if (!question.options || !Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || !opt.text || !opt.originalLetter)) {
-            console.warn(`Question ${index + 1} (ID: ${question.id}) has invalid options format. Expected array of {text, originalLetter}. Received:`, question.options);
+            console.warn(`Word ${index + 1} (ID: ${question.id}) has invalid options format.`);
           }
-          if (!question.correct_answer_letter_from_db) {
-            console.warn(`Question ${index + 1} (ID: ${question.id}) missing correct_answer_letter_from_db.`);
+          if (!question.word || !question.definition) {
+            console.warn(`Word ${index + 1} (ID: ${question.id}) missing essential word data.`);
           }
-          if (!question.explanation && question.explanation !== '') {
-             console.info(`Question ${question.id} has no explanation`);
+          if (!question.example_sentence) {
+            console.warn(`Word ${index + 1} (ID: ${question.id}) missing example sentence.`);
           }
         });
       }
@@ -80,7 +80,8 @@ export const questionsAPI = {
 
   getDifficultyLevels: async () => {
     try {
-      const response = await api.get('/questions/difficulties');
+      // NEW: Use words endpoint
+      const response = await api.get('/words/difficulties');
       return response.data;
     } catch (error) {
       throw error;
@@ -89,7 +90,8 @@ export const questionsAPI = {
 
   checkAnswer: async (questionId, selectedOriginalLetter) => {
     try {
-      const response = await api.post('/questions/check', {
+      // NEW: Use words endpoint but maintain interface
+      const response = await api.post('/words/check', {
         questionId,
         selectedOriginalLetter
       });
@@ -102,8 +104,10 @@ export const questionsAPI = {
         if (missingFields.length > 0) {
           console.error('Missing required fields in checkAnswer response:', missingFields);
         }
-        if (data.explanation === undefined) {
-          console.info('Explanation not present in checkAnswer response for question:', questionId);
+        
+        // NEW: Log word information if available
+        if (data.word_info) {
+          console.info('Word details:', data.word_info);
         }
       }
       return response.data;
@@ -112,11 +116,10 @@ export const questionsAPI = {
     }
   },
 
-  getPreviousQuestions: async () => { // Bu fonksiyon Learning History için güncellenecek veya kaldırılacak
+  // LEGACY: Keep for backward compatibility
+  getPreviousQuestions: async () => {
+    console.warn("getPreviousQuestions is deprecated. Use historyAPI.getLearningHistory instead.");
     try {
-      // Bu endpoint artık /api/history/learning ile değiştirilecek.
-      // Şimdilik burada bırakıyorum ama LearningHistoryPage.jsx'te yeni API kullanılacak.
-      console.warn("getPreviousQuestions is deprecated. Use historyAPI.getLearningHistory instead.");
       const response = await api.get('/questions/previous');
       return response.data;
     } catch (error) {
@@ -124,9 +127,9 @@ export const questionsAPI = {
     }
   },
 
-  getIncorrectQuestions: async () => { // Bu fonksiyon Weakness Training için güncellenecek
+  getIncorrectQuestions: async () => {
     try {
-      const response = await api.get('/questions/incorrect'); // Backend'de bu endpoint'i henüz tam olarak geliştirmedik
+      const response = await api.get('/questions/incorrect');
       return response.data;
     } catch (error) {
       throw error;
@@ -134,7 +137,45 @@ export const questionsAPI = {
   },
 };
 
-// User Stats API fonksiyonları
+// NEW: Words API with explicit naming (for future use)
+export const wordsAPI = {
+  getRandomWords: async (limit = 10, difficulty = null) => {
+    try {
+      const params = { limit };
+      if (difficulty && difficulty !== 'mixed') {
+        params.difficulty = difficulty;
+      }
+
+      const response = await api.get('/words/random', { params });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getDifficultyLevels: async () => {
+    try {
+      const response = await api.get('/words/difficulties');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  checkWordAnswer: async (wordId, selectedOriginalLetter) => {
+    try {
+      const response = await api.post('/words/check', {
+        questionId: wordId, // Keep same parameter name for compatibility
+        selectedOriginalLetter
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
+// User Stats API (unchanged but updated for words context)
 export const userStatsAPI = {
   recordQuizSession: async (sessionDetails) => {
     try {
@@ -165,13 +206,13 @@ export const userStatsAPI = {
   }
 };
 
-// YENİ: Learning History API fonksiyonları
+// Learning History API (updated for words)
 export const historyAPI = {
   getLearningHistory: async (page = 1, limit = 10, sortBy = 'date_desc') => {
     try {
       const params = { page, limit, sortBy };
-      const response = await api.get('/history/learning', { params }); // Yeni backend endpoint'i
-      return response.data; // Backend'den gelen { success, data, pagination } objesini döndürür
+      const response = await api.get('/history/learning', { params });
+      return response.data;
     } catch (error) {
       console.error('Error fetching learning history:', error.message, error.originalError?.response?.data);
       throw error;
@@ -179,48 +220,91 @@ export const historyAPI = {
   }
 };
 
-
-// Difficulty level utilities
+// UPDATED: Difficulty level utilities (now supports CEFR levels)
 export const difficultyUtils = {
   getDisplayName: (difficulty) => {
     const names = {
       'beginner': 'Beginner',
-      'intermediate': 'Intermediate',
+      'intermediate': 'Intermediate', 
       'advanced': 'Advanced',
-      'mixed': 'Mixed Levels'
+      'mixed': 'Mixed Levels',
+      // NEW: CEFR level support
+      'A1': 'Beginner (A1)',
+      'A2': 'Beginner (A2)',
+      'B1': 'Intermediate (B1)',
+      'B2': 'Intermediate (B2)',
+      'C1': 'Advanced (C1)',
+      'C2': 'Advanced (C2)'
     };
     return names[difficulty] || difficulty;
   },
+  
   getIcon: (difficulty) => {
     const icons = {
       'beginner': '🌱',
       'intermediate': '🎯',
       'advanced': '🚀',
-      'mixed': '🌈'
+      'mixed': '🌈',
+      // NEW: CEFR level icons
+      'A1': '🌱',
+      'A2': '🌿',
+      'B1': '🎯',
+      'B2': '🏹',
+      'C1': '🚀',
+      'C2': '🌟'
     };
     return icons[difficulty] || '📚';
   },
+  
   getColorClass: (difficulty) => {
     const colors = {
       'beginner': 'text-green-600 bg-green-100',
       'intermediate': 'text-blue-600 bg-blue-100',
       'advanced': 'text-red-600 bg-red-100',
-      'mixed': 'text-purple-600 bg-purple-100'
+      'mixed': 'text-purple-600 bg-purple-100',
+      // NEW: CEFR level colors
+      'A1': 'text-green-500 bg-green-50',
+      'A2': 'text-green-600 bg-green-100',
+      'B1': 'text-blue-500 bg-blue-50',
+      'B2': 'text-blue-600 bg-blue-100',
+      'C1': 'text-red-500 bg-red-50',
+      'C2': 'text-red-600 bg-red-100'
     };
     return colors[difficulty] || 'text-gray-600 bg-gray-100';
   },
+  
   getDescription: (difficulty) => {
     const descriptions = {
       'beginner': 'Perfect for learning basic vocabulary',
       'intermediate': 'Good for building stronger language skills',
       'advanced': 'Challenge yourself with complex vocabulary',
-      'mixed': 'Questions from all difficulty levels'
+      'mixed': 'Words from all difficulty levels',
+      // NEW: CEFR level descriptions
+      'A1': 'Basic vocabulary for everyday situations',
+      'A2': 'Elementary words for common topics',
+      'B1': 'Intermediate vocabulary for work and study',
+      'B2': 'Upper-intermediate words for complex topics',
+      'C1': 'Advanced vocabulary for professional contexts',
+      'C2': 'Mastery-level words for academic and literary texts'
     };
-    return descriptions[difficulty] || 'Vocabulary questions';
+    return descriptions[difficulty] || 'Vocabulary words';
+  },
+
+  // NEW: Map CEFR levels to our categories
+  getCategoryFromCEFR: (cefrLevel) => {
+    const mapping = {
+      'A1': 'beginner',
+      'A2': 'beginner',
+      'B1': 'intermediate',
+      'B2': 'intermediate',
+      'C1': 'advanced',
+      'C2': 'advanced'
+    };
+    return mapping[cefrLevel] || 'mixed';
   }
 };
 
-// Course type utilities
+// Course type utilities (unchanged)
 export const courseUtils = {
   parseCourseType: (courseType) => {
     if (courseType.startsWith('difficulty-')) {
@@ -230,31 +314,31 @@ export const courseUtils = {
         isGeneral: false
       };
     }
-    // 'weakness-training' gibi özel türleri de buraya ekleyebiliriz ileride.
     return {
-      type: 'general', // 'general' veya bilinmeyenleri 'mixed' kabul edelim
+      type: 'general',
       difficulty: 'mixed',
       isGeneral: true
     };
   },
   generateCourseType: (difficulty) => {
-    if (difficulty === 'mixed' || difficulty === 'Mixed Levels') { // 'Mixed Levels' kontrolü eklendi
+    if (difficulty === 'mixed' || difficulty === 'Mixed Levels') {
       return 'general';
     }
     return `difficulty-${difficulty}`;
   }
 };
 
-// Question utilities
+// UPDATED: Question utilities (now word utilities)
 export const questionUtils = {
   validateQuestion: (question) => {
     const requiredFields = [
-      'id', 'question_text', 'options', 'correct_answer_letter_from_db'
+      'id', 'word', 'definition', 'example_sentence', 'question_text', 'options', 'correct_answer_letter_from_db'
     ];
     if (!requiredFields.every(field => question[field] !== undefined)) return false;
     if (!Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || typeof opt.text !== 'string' || typeof opt.originalLetter !== 'string')) return false;
     return true;
   },
+
   getCorrectAnswerTextFromProcessedQuestion: (question) => {
     if (!question || !question.options || !question.correct_answer_letter_from_db) {
       return null;
@@ -262,22 +346,41 @@ export const questionUtils = {
     const correctOption = question.options.find(opt => opt.originalLetter === question.correct_answer_letter_from_db);
     return correctOption ? correctOption.text : null;
   },
+
   hasExplanation: (question) => {
     return question.explanation && question.explanation.trim().length > 0;
   },
+
   formatQuestion: (question) => {
     return {
       ...question,
-      hasContext: !!question.paragraph,
+      hasContext: !!question.example_sentence, // Changed from paragraph to example_sentence
       hasExplanation: questionUtils.hasExplanation(question),
+      isWordBased: true, // NEW: Indicates this is from words table
+      wordDetails: { // NEW: Extract word-specific details
+        word: question.word,
+        partOfSpeech: question.part_of_speech,
+        definition: question.definition,
+        difficultyLevel: question.difficulty_level
+      }
     };
+  },
+
+  // NEW: Word-specific utilities
+  generateQuestionPreview: (word, partOfSpeech, exampleSentence) => {
+    if (!word || !exampleSentence) return 'Question preview unavailable';
+    return `What does "${word}" (${partOfSpeech}) mean in this context?`;
+  },
+
+  highlightWordInSentence: (sentence, word) => {
+    if (!sentence || !word) return sentence;
+    return sentence.replace(new RegExp(`\\b${word}\\b`, 'gi'), `**${word}**`);
   }
 };
 
-// Health check function
+// Health check function (unchanged)
 export const healthCheck = async () => {
   try {
-    // baseURL'i doğrudan kullanmak yerine, axios'un kendi instance'ı dışındaki bir çağrı için tam URL oluşturuyoruz.
     const healthCheckUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '/health');
     const response = await axios.get(healthCheckUrl);
     return response.data;

@@ -1,3 +1,4 @@
+// frontend/src/components/QuestionCard.jsx (UPDATED for words)
 import React from 'react'
 
 const QuestionCard = ({
@@ -6,8 +7,8 @@ const QuestionCard = ({
   showResult,
   isCorrect,
   correctAnswerIndex,
-  correctAnswerText, // 🆕 NEW: From API response
-  explanation, // 🆕 NEW: From API response
+  correctAnswerText,
+  explanation,
   onAnswerSelect,
   onSubmitAnswer,
   onNextQuestion,
@@ -16,6 +17,31 @@ const QuestionCard = ({
   totalQuestions
 }) => {
   if (!question) return null
+
+  // NEW: Extract word-specific information
+  const wordInfo = question.wordDetails || {
+    word: question.word,
+    partOfSpeech: question.part_of_speech,
+    definition: question.definition,
+    difficultyLevel: question.difficulty_level
+  };
+
+  // NEW: Helper to highlight word in example sentence
+  const highlightWordInSentence = (sentence, word) => {
+    if (!sentence || !word) return sentence;
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    return sentence.split(regex).map((part, index, array) => {
+      if (index < array.length - 1) {
+        return (
+          <React.Fragment key={index}>
+            {part}
+            <strong className="text-primary-600 bg-primary-50 px-1 rounded">{word}</strong>
+          </React.Fragment>
+        );
+      }
+      return part;
+    });
+  };
 
   return (
     <div className="card-elevated">
@@ -29,8 +55,45 @@ const QuestionCard = ({
         </div>
       </div>
 
-      {/* Paragraph Context (if exists) */}
-      {question.paragraph && (
+      {/* NEW: Word Information Header */}
+      {wordInfo.word && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="text-2xl font-bold text-gray-900">
+                {wordInfo.word}
+              </div>
+              {wordInfo.partOfSpeech && (
+                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                  {wordInfo.partOfSpeech}
+                </span>
+              )}
+            </div>
+            {wordInfo.difficultyLevel && (
+              <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                {wordInfo.difficultyLevel}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Example Sentence Context */}
+      {question.example_sentence && (
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+            <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">
+              Example Sentence
+            </div>
+            <p className="text-gray-700 leading-relaxed italic text-lg">
+              "{highlightWordInSentence(question.example_sentence, wordInfo.word)}"
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* LEGACY: Support old paragraph format for backward compatibility */}
+      {question.paragraph && !question.example_sentence && (
         <div className="mb-6">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
             <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">
@@ -48,6 +111,13 @@ const QuestionCard = ({
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed">
           {question.question_text}
         </h2>
+        
+        {/* NEW: Additional context for word-based questions */}
+        {wordInfo.word && !question.question_text.includes('What does') && (
+          <p className="text-gray-600 mt-2">
+            What does the word "<strong>{wordInfo.word}</strong>" mean in this context?
+          </p>
+        )}
       </div>
 
       {/* Answer Options */}
@@ -115,7 +185,7 @@ const QuestionCard = ({
             >
               <div className="flex items-center">
                 {icon}
-                <span className="flex-1">{option}</span>
+                <span className="flex-1 text-left">{option.text || option}</span>
               </div>
             </button>
           )
@@ -156,13 +226,13 @@ const QuestionCard = ({
               }`}>
                 {isCorrect 
                   ? 'Great job! You got it right.' 
-                  : `The correct answer is: ${correctAnswerText || question.options[correctAnswerIndex]}`
+                  : `The correct answer is: ${correctAnswerText || question.options[correctAnswerIndex]?.text || question.options[correctAnswerIndex]}`
                 }
               </p>
             </div>
           </div>
 
-          {/* 🆕 NEW: Explanation Section */}
+          {/* Enhanced Explanation Section for Words */}
           {explanation && explanation.trim().length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex items-start space-x-2">
@@ -174,12 +244,25 @@ const QuestionCard = ({
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-gray-800 mb-1">
-                    💡 Explanation:
+                  <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                    📚 Word Definition:
+                    {wordInfo.difficultyLevel && (
+                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                        {wordInfo.difficultyLevel}
+                      </span>
+                    )}
                   </h4>
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {explanation}
                   </p>
+                  
+                  {/* NEW: Additional word information */}
+                  {wordInfo.word && wordInfo.partOfSpeech && (
+                    <div className="mt-3 text-xs text-gray-500">
+                      <strong>{wordInfo.word}</strong> ({wordInfo.partOfSpeech})
+                      {wordInfo.difficultyLevel && ` • ${wordInfo.difficultyLevel} level`}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -215,7 +298,7 @@ const QuestionCard = ({
             className="flex-1 btn-primary flex items-center justify-center space-x-2"
           >
             <span>
-              {currentIndex < totalQuestions - 1 ? 'Next Question' : 'Finish Quiz'}
+              {currentIndex < totalQuestions - 1 ? 'Next Word' : 'Finish Quiz'}
             </span>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -224,21 +307,31 @@ const QuestionCard = ({
         )}
       </div>
 
-      {/* Tip */}
+      {/* Tips and Study Notes */}
       {!showResult && selectedAnswer === null && (
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">
-            💡 Select an answer and click Submit to continue
+            💡 Select the definition that best matches the word's meaning in the sentence
           </p>
         </div>
       )}
 
-      {/* 🆕 NEW: Study Tip for explanations */}
+      {/* Enhanced Study Tip for Word Learning */}
       {showResult && explanation && explanation.trim().length > 0 && (
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-500 italic">
-            📚 Study tip: Read the explanation above to strengthen your understanding!
+            📚 Study tip: Try using "{wordInfo.word}" in your own sentence to reinforce learning!
           </p>
+        </div>
+      )}
+
+      {/* NEW: Word Learning Progress Indicator */}
+      {wordInfo.difficultyLevel && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>Learning: {wordInfo.word}</span>
+            <span>Level: {wordInfo.difficultyLevel}</span>
+          </div>
         </div>
       )}
     </div>

@@ -1,36 +1,36 @@
+// backend/controllers/userStatsController.js (UPDATED for words table)
 const supabase = require('../config/supabase');
 
 // Helper function to calculate streak
 const calculateStreak = (currentStreak, lastActivityDateStr) => {
-    if (!lastActivityDateStr) return 1; // İlk aktivite ise 1 gün seri
+    if (!lastActivityDateStr) return 1;
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Bugünün başlangıcı
+    today.setHours(0, 0, 0, 0);
 
     const lastActivityDate = new Date(lastActivityDateStr);
-    lastActivityDate.setHours(0, 0, 0, 0); // Son aktivite gününün başlangıcı
+    lastActivityDate.setHours(0, 0, 0, 0);
 
     const diffTime = today - lastActivityDate;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 1) {
-        return currentStreak + 1; // Seri devam ediyor
+        return currentStreak + 1;
     } else if (diffDays === 0) {
-        return currentStreak; // Aynı gün içinde birden fazla aktivite, seri değişmez
+        return currentStreak;
     } else {
-        return 1; // Seri bozulmuş, yeni seri başlıyor
+        return 1;
     }
 };
 
 const recordQuizSession = async (req, res) => {
-    // DEBUG: User bilgisini logla
     console.log('🔍 Record Quiz Session Request:', {
         user: req.user,
         user_id: req.user?.user_id,
         id: req.user?.id
     });
 
-    const user_id = req.user?.user_id || req.user?.id; // Fallback ekle
+    const user_id = req.user?.user_id || req.user?.id;
     
     if (!user_id) {
         console.error('❌ No user_id found in record quiz session request');
@@ -64,11 +64,12 @@ const recordQuizSession = async (req, res) => {
         console.log('✅ Quiz session created:', sessionData.session_id);
 
         // 2. user_Youtubes tablosuna detayları kaydet
+        // NOTE: Tablo adını daha anlamlı bir şeye değiştirmeyi düşünebiliriz (user_answers gibi)
         if (questions_answered_details && questions_answered_details.length > 0) {
             const answersToInsert = questions_answered_details.map(answer => ({
                 session_id: sessionData.session_id,
                 user_id,
-                question_id: answer.question_id,
+                question_id: answer.question_id, // Bu artık word_id'yi temsil ediyor
                 selected_original_letter: answer.selected_original_letter,
                 is_correct: answer.is_correct
             }));
@@ -85,7 +86,7 @@ const recordQuizSession = async (req, res) => {
             console.log('✅ Quiz answers recorded:', answersToInsert.length);
         }
 
-        // 3. user_profiles güncelle (total_points, streak_days, last_activity_date)
+        // 3. user_profiles güncelle
         const { data: userProfile, error: profileError } = await supabase
             .from('user_profiles')
             .select('total_points, streak_days, last_activity_date')
@@ -95,7 +96,6 @@ const recordQuizSession = async (req, res) => {
         if (profileError) {
             console.error('Profile fetch error:', profileError);
             
-            // Eğer profile yoksa oluştur
             if (profileError.code === 'PGRST116') {
                 console.log('🔧 Creating user profile during quiz session...');
                 const todayISO = new Date().toISOString().split('T')[0];
@@ -121,8 +121,7 @@ const recordQuizSession = async (req, res) => {
                 throw profileError;
             }
         } else {
-            // Profile var, güncelle
-            const newPoints = (userProfile.total_points || 0) + score_correct; // Sadece doğru cevap sayısı kadar puan
+            const newPoints = (userProfile.total_points || 0) + score_correct;
             const newStreak = calculateStreak(userProfile.streak_days || 0, userProfile.last_activity_date);
             const todayISO = new Date().toISOString().split('T')[0];
 
@@ -151,7 +150,7 @@ const recordQuizSession = async (req, res) => {
             .eq('course_type', course_type)
             .single();
 
-        if (courseProgressError && courseProgressError.code !== 'PGRST116') { // PGRST116: no rows found
+        if (courseProgressError && courseProgressError.code !== 'PGRST116') {
             throw courseProgressError;
         }
 
@@ -265,14 +264,13 @@ const recordQuizSession = async (req, res) => {
 };
 
 const getUserDashboardStats = async (req, res) => {
-    // DEBUG: User bilgisini logla
     console.log('🔍 Dashboard Stats Request:', {
         user: req.user,
         user_id: req.user?.user_id,
         id: req.user?.id
     });
 
-    const user_id = req.user?.user_id || req.user?.id; // Fallback ekle
+    const user_id = req.user?.user_id || req.user?.id;
     
     if (!user_id) {
         console.error('❌ No user_id found in dashboard stats request');
@@ -296,7 +294,6 @@ const getUserDashboardStats = async (req, res) => {
         if (profileError) {
             console.error('Profile error:', profileError);
             
-            // Eğer profile yoksa oluştur
             if (profileError.code === 'PGRST116') {
                 console.log('🔧 Creating user profile for dashboard...');
                 const { data: newProfile, error: createError } = await supabase
@@ -316,17 +313,9 @@ const getUserDashboardStats = async (req, res) => {
                 }
                 
                 console.log('✅ User profile created for dashboard:', newProfile);
-                
-                // Yeni oluşturulan profille devam et
-                const profile = newProfile;
             } else {
                 throw profileError;
             }
-        }
-
-        if (!profile) {
-            console.error('❌ Profile is null after creation attempt');
-            return res.status(500).json({ error: "Failed to create or fetch user profile" });
         }
 
         const { data: dailyStat, error: dailyStatError } = await supabase
@@ -336,28 +325,27 @@ const getUserDashboardStats = async (req, res) => {
             .eq('stat_date', todayISO)
             .single();
 
-        // dailyStatError'u yok sayıyoruz (PGRST116), çünkü o gün için kayıt olmayabilir, bu normal.
         if (dailyStatError && dailyStatError.code !== 'PGRST116') {
             throw dailyStatError;
         }
 
-        // Toplam soru sayısını questions tablosundan alalım
-        const { count: totalQuestionsAvailable, error: countError } = await supabase
-            .from('questions')
-            .select('*', { count: 'exact', head: true })
-            .eq('is_active', true);
+        // UPDATED: Get total word count from words table instead of questions
+        const { count: totalWordsAvailable, error: countError } = await supabase
+            .from('words')
+            .select('*', { count: 'exact', head: true });
 
         if (countError) {
-            console.error('Questions count error:', countError);
+            console.error('Words count error:', countError);
             throw countError;
         }
 
         const result = {
             success: true,
-            streak_days: profile.streak_days || 0,
+            streak_days: profile?.streak_days || 0,
             completed_today: dailyStat?.questions_answered_today || 0,
-            total_points: profile.total_points || 0,
-            total_questions_available: totalQuestionsAvailable || 0
+            total_points: profile?.total_points || 0,
+            total_questions_available: totalWordsAvailable || 0, // Now based on words count
+            total_words_available: totalWordsAvailable || 0 // NEW: Add explicit words count
         };
 
         console.log('✅ Dashboard stats fetched:', result);
@@ -375,14 +363,13 @@ const getUserDashboardStats = async (req, res) => {
 };
 
 const getUserCourseStats = async (req, res) => {
-    // DEBUG: User bilgisini logla
     console.log('🔍 Course Stats Request:', {
         user: req.user,
         user_id: req.user?.user_id,
         id: req.user?.id
     });
 
-    const user_id = req.user?.user_id || req.user?.id; // Fallback ekle
+    const user_id = req.user?.user_id || req.user?.id;
     
     if (!user_id) {
         console.error('❌ No user_id found in course stats request');
