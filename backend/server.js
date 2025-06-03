@@ -17,6 +17,7 @@ app.use(express.json());
 // Import routes
 const apiRoutes = require('./routes');
 const reportRoutes = require('./routes/reports'); // Yeni rapor route'larını import et
+const weaknessRoutes = require('./routes/weaknessRoutes'); // Yeni zayıflık route'larını import et
 
 // Routes
 app.get('/', (req, res) => {
@@ -41,6 +42,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api', apiRoutes);
 app.use('/api/reports', reportRoutes); // Yeni /api/reports route'unu ekle
+app.use('/api/weakness', weaknessRoutes); // Yeni /api/weakness route'unu ekle
 
 // Start server
 app.listen(PORT, () => {

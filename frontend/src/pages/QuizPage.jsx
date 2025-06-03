@@ -28,6 +28,9 @@ const QuizPage = () => {
   const [reportError, setReportError] = useState('');
   const [reportSuccessMessage, setReportSuccessMessage] = useState('');
 
+  // Weakness Training / Study List state'leri
+  const [weaknessSubmitting, setWeaknessSubmitting] = useState(false);
+  const [weaknessStatusMessage, setWeaknessStatusMessage] = useState(''); // For add/remove feedback
 
   const [answerDetails, setAnswerDetails] = useState({
     correctAnswerText: '',
@@ -53,28 +56,46 @@ const QuizPage = () => {
     answeredQuestionsDetailsRef.current = [];
   }, [courseType]);
 
+  const isWeaknessTrainingCourse = courseType === 'weakness-training';
+
   const loadQuestions = async () => {
     try {
       setLoading(true);
       setError('');
-      const questionLimit = 10; 
+      setQuestions([]); // Reset questions before loading new ones
+      setCurrentQuestionIndex(0); // Reset index
+      setScore({ correct: 0, total: 0 }); // Reset score
+      setShowResult(false);
+      setSelectedAnswerIndex(null);
+
+
+      const questionLimit = 10;
       let response;
 
-      setQuizInfo({
-          difficulty: parsedCourseInfo.difficulty,
-          displayName: difficultyUtils.getDisplayName(parsedCourseInfo.difficulty),
-          icon: difficultyUtils.getIcon(parsedCourseInfo.difficulty)
-      });
-
-      if (parsedCourseInfo.isGeneral || parsedCourseInfo.difficulty === 'mixed') {
-        response = await questionsAPI.getRandomQuestions(questionLimit, 'mixed');
-      } else if (parsedCourseInfo.type === 'difficulty') {
-        response = await questionsAPI.getRandomQuestions(questionLimit, parsedCourseInfo.difficulty);
+      if (isWeaknessTrainingCourse) {
+        setQuizInfo({
+            difficulty: 'custom', // or 'varied'
+            displayName: 'Weakness Training',
+            icon: '💪' // Example icon
+        });
+        response = await questionsAPI.getWeaknessTrainingQuestions(questionLimit);
       } else {
-        setError('This course type is not yet available');
-        setLoading(false);
-        return;
+        setQuizInfo({
+            difficulty: parsedCourseInfo.difficulty,
+            displayName: difficultyUtils.getDisplayName(parsedCourseInfo.difficulty),
+            icon: difficultyUtils.getIcon(parsedCourseInfo.difficulty)
+        });
+        if (parsedCourseInfo.isGeneral || parsedCourseInfo.difficulty === 'mixed') {
+          response = await questionsAPI.getRandomQuestions(questionLimit, 'mixed');
+        } else if (parsedCourseInfo.type === 'difficulty') {
+          response = await questionsAPI.getRandomQuestions(questionLimit, parsedCourseInfo.difficulty);
+        } else {
+          setError('This course type is not yet available');
+          setLoading(false);
+          return;
+        }
       }
+
 
       if (response.success && response.questions && response.questions.length > 0) {
         const validQuestions = response.questions.filter(questionUtils.validateQuestion);
@@ -88,7 +109,8 @@ const QuizPage = () => {
           setQuestions(validQuestions.map(q => questionUtils.formatQuestion(q)));
         }
       } else {
-        setError(`No questions available for ${quizInfo.displayName} level. Message: ${response.message || ''}`);
+        const courseNameForError = isWeaknessTrainingCourse ? 'Weakness Training' : quizInfo.displayName;
+        setError(response.message || `No questions available for ${courseNameForError}.`);
         setQuestions([]);
       }
     } catch (err) {
@@ -262,6 +284,53 @@ const QuizPage = () => {
     }
   };
 
+  const handleAddWeaknessItem = async () => {
+    if (!currentQuestion || weaknessSubmitting) return;
+    setWeaknessSubmitting(true);
+    setWeaknessStatusMessage('');
+    try {
+      const response = await questionsAPI.addWeaknessItem(currentQuestion.id);
+      if (response.success) {
+        setWeaknessStatusMessage('Added to your Study List!');
+        // Optionally, update button state or icon here
+      } else {
+        setWeaknessStatusMessage(response.message || 'Could not add to Study List.');
+      }
+    } catch (error) {
+      setWeaknessStatusMessage(error.message || 'Error adding to Study List.');
+    } finally {
+      setWeaknessSubmitting(false);
+      setTimeout(() => setWeaknessStatusMessage(''), 3000); // Clear message after 3s
+    }
+  };
+
+  const handleRemoveWeaknessItem = async () => {
+    if (!currentQuestion || weaknessSubmitting) return;
+    setWeaknessSubmitting(true);
+    setWeaknessStatusMessage('');
+    try {
+      const response = await questionsAPI.removeWeaknessItem(currentQuestion.id);
+      if (response.success) {
+        setWeaknessStatusMessage('Removed from your Study List.');
+        // Optionally, remove question from current quiz view or allow skip
+        // For now, just show message. User can go to next question.
+        // To remove from view:
+        // setQuestions(prev => prev.filter(q => q.id !== currentQuestion.id));
+        // if (currentQuestionIndex >= questions.length - 1 && questions.length > 1) {
+        //   setCurrentQuestionIndex(prev => Math.max(0, prev -1));
+        // } // This logic can be complex, handle with care.
+      } else {
+        setWeaknessStatusMessage(response.message || 'Could not remove from Study List.');
+      }
+    } catch (error) {
+      setWeaknessStatusMessage(error.message || 'Error removing from Study List.');
+    } finally {
+      setWeaknessSubmitting(false);
+      setTimeout(() => setWeaknessStatusMessage(''), 3000); // Clear message after 3s
+    }
+  };
+
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" text={`Loading ${quizInfo.displayName} questions...`} /></div>;
   if (error && !questions.length) return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -281,7 +350,7 @@ const QuizPage = () => {
       <div className="text-center max-w-md">
         <div className="text-6xl mb-4">📚</div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">No Questions Available</h2>
-        <p className="text-gray-600 mb-6">There are no questions available for the {quizInfo.displayName} level.</p>
+        <p className="text-gray-600 mb-6">{error || `There are currently no questions available for the ${quizInfo.displayName} level.`}</p>
         <button onClick={handleBackToHome} className="btn-primary">Back to Home</button>
       </div>
     </div>
@@ -380,19 +449,46 @@ const QuizPage = () => {
             })}
             </div>
 
-            {/* Rapor Et Butonu */}
+            {/* Action Buttons Area (Report, Add/Remove Weakness) */}
             {currentQuestion && (
-              <div className="mt-6 mb-2 text-center sm:text-right">
+              <div className="mt-6 mb-4 text-center sm:text-right space-x-2">
+                {/* Report Button */}
                 <button
                   onClick={handleOpenReportModal}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
                   title="Report this question"
-                  disabled={submitting || reportSubmitting}
+                  disabled={submitting || reportSubmitting || weaknessSubmitting}
                 >
-                  {/* <FlagIcon className="h-4 w-4 mr-1.5 text-gray-500" aria-hidden="true" /> */}
                   ⚠️ Report Question
                 </button>
+
+                {/* Add to Weakness Training Button */}
+                {!isWeaknessTrainingCourse && (
+                  <button
+                    onClick={handleAddWeaknessItem}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
+                    title="Add this question to your Weakness Training list"
+                    disabled={weaknessSubmitting || submitting || reportSubmitting}
+                  >
+                    ➕ Add to Weakness Training
+                  </button>
+                )}
+
+                {/* Remove from Weakness Training Button */}
+                {isWeaknessTrainingCourse && (
+                  <button
+                    onClick={handleRemoveWeaknessItem}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50"
+                    title="Remove this question from your Weakness Training list"
+                    disabled={weaknessSubmitting || submitting || reportSubmitting}
+                  >
+                    ➖ Remove from Weakness Training
+                  </button>
+                )}
               </div>
+            )}
+            {weaknessStatusMessage && (
+                <div className="my-2 text-sm text-center text-blue-700">{weaknessStatusMessage}</div>
             )}
 
             {showResult && (

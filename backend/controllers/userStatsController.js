@@ -75,7 +75,7 @@ const recordQuizSession = async (req, res) => {
             }));
             
             const { error: answersError } = await supabase
-                .from('user_Youtubes')
+                .from('question_attempts')
                 .insert(answersToInsert);
 
             if (answersError) {
@@ -84,6 +84,59 @@ const recordQuizSession = async (req, res) => {
             }
 
             console.log('✅ Quiz answers recorded:', answersToInsert.length);
+
+            // OTOMATİK ZAYIFLIK LİSTESİNE EKLEME (YANLIŞ CEVAPLAR İÇİN)
+            for (const answer of questions_answered_details) {
+                if (!answer.is_correct) {
+                    const word_id = answer.question_id;
+
+                    // Önce mevcut kaydı kontrol et (manuel olarak çıkarılmış mı diye)
+                    const { data: existingItem, error: fetchError } = await supabase
+                        .from('user_weakness_items')
+                        .select('status')
+                        .eq('user_id', user_id)
+                        .eq('word_id', word_id)
+                        .single();
+
+                    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows found
+                        console.error(`Error fetching weakness item for user ${user_id}, word ${word_id}:`, fetchError);
+                        // Bu hatayı ana hataya atmadan devam et, quiz kaydını engellemesin
+                        continue;
+                    }
+
+                    if (existingItem && existingItem.status === 'removed_manual') {
+                        // Kullanıcı manuel olarak çıkardıysa, dokunma
+                        console.log(`User ${user_id} manually removed word ${word_id}, not auto-adding.`);
+                        continue;
+                    }
+
+                    // Kayıt yoksa veya manuel çıkarılmamışsa ekle/güncelle (status: active_auto)
+                    const { error: upsertError } = await supabase
+                        .from('user_weakness_items')
+                        .upsert(
+                            {
+                                user_id,
+                                word_id,
+                                status: 'active_auto',
+                                updated_at: new Date().toISOString(),
+                                // added_at: upsert bunu otomatik yönetir (eğer yeni kayıt ise) veya mevcut kalır.
+                                // Supabase upsert'te added_at'i sadece yeni kayıtta set etmek için özel bir şey yapmaya gerek yok,
+                                // eğer sütun tanımında DEFAULT now() varsa ve insert ise alır, update ise dokunulmaz (eğer explicit verilmezse).
+                                // Biz burada updated_at'i veriyoruz, added_at'i vermiyoruz, böylece yeni ise default'u alır.
+                            },
+                            {
+                                onConflict: 'user_id, word_id',
+                            }
+                        );
+
+                    if (upsertError) {
+                        console.error(`Error upserting auto weakness item for user ${user_id}, word ${word_id}:`, upsertError);
+                        // Bu hatayı da ana hataya atmadan devam et
+                    } else {
+                        console.log(`Word ${word_id} auto-added/updated to weakness list for user ${user_id}.`);
+                    }
+                }
+            }
         }
 
         // 3. user_profiles güncelle

@@ -164,9 +164,7 @@ export const questionsAPI = {
   submitReportQuestion: async (reportData) => {
     try {
       console.log('🚩 Submitting question report:', reportData);
-      // reportData should contain { word_id, report_reason, report_details (optional) }
-      const response = await api.post('/reports/question', reportData); // Yeni endpoint /api/reports/question olacak
-
+      const response = await api.post('/reports/question', reportData);
       if (response.data.success) {
         console.log('✅ Report submitted successfully:', response.data.report_id);
       }
@@ -176,6 +174,49 @@ export const questionsAPI = {
       throw error;
     }
   },
+
+  // Weakness Training / Study List related API calls
+  getWeaknessTrainingQuestions: async (limit = 10) => {
+    try {
+      console.log(`🧠 Fetching weakness training questions, limit: ${limit}`);
+      const response = await api.get('/weakness/questions', { params: { limit } });
+      if (response.data.success && response.data.questions) {
+        console.log(`✅ Successfully loaded ${response.data.questions.length} weakness training questions.`);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching weakness training questions:', error.message);
+      throw error;
+    }
+  },
+
+  addWeaknessItem: async (word_id) => {
+    try {
+      console.log(`➕ Adding word ${word_id} to weakness training list.`);
+      const response = await api.post('/weakness/items', { word_id });
+      if (response.data.success) {
+        console.log(`✅ Word ${word_id} added/updated in weakness training list.`);
+      }
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error adding word ${word_id} to weakness training list:`, error.message);
+      throw error;
+    }
+  },
+
+  removeWeaknessItem: async (word_id) => {
+    try {
+      console.log(`➖ Removing word ${word_id} from weakness training list.`);
+      const response = await api.delete(`/weakness/items/${word_id}`);
+      if (response.data.success) {
+        console.log(`✅ Word ${word_id} removed/marked as removed from weakness training list.`);
+      }
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error removing word ${word_id} from weakness training list:`, error.message);
+      throw error;
+    }
+  }
 };
 
 // NEW: Explicit Words API (for future use)
