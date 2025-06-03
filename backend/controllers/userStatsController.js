@@ -90,6 +90,12 @@ const recordQuizSession = async (req, res) => {
                 if (!answer.is_correct) {
                     const word_id = answer.question_id;
 
+                    // word_id'nin null veya undefined olmadığını kontrol et
+                    if (word_id == null) { // Hem null hem de undefined kontrolü yapar
+                        console.warn(`Skipping weakness item processing for user ${user_id} due to null/undefined word_id. Answer details:`, answer);
+                        continue; // Bu cevabı atla, sonrakiyle devam et
+                    }
+
                     // Önce mevcut kaydı kontrol et (manuel olarak çıkarılmış mı diye)
                     const { data: existingItem, error: fetchError } = await supabase
                         .from('user_weakness_items')
