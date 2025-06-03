@@ -1,11 +1,11 @@
-// frontend/src/services/api.js (UPDATED for words table)
+// frontend/src/services/api.js (CLEAN VERSION - Priority 3)
 import axios from 'axios';
 import { getAuthToken } from '../config/supabase';
 
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  timeout: 10000,
+  timeout: 15000, // Increased timeout for words processing
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,10 +34,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error('Unauthorized access - redirecting to login');
+      console.error('Unauthorized access - session expired');
+      // Could trigger logout here if needed
     }
 
-    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        error.message || 
+                        'An unexpected error occurred';
+    
     return Promise.reject({
       message: errorMessage,
       status: error.response?.status,
@@ -46,7 +51,7 @@ api.interceptors.response.use(
   }
 );
 
-// UPDATED: Words API (replaces questionsAPI but keeps same interface for compatibility)
+// MAIN API: Words-based endpoints (Primary)
 export const questionsAPI = {
   getRandomQuestions: async (limit = 10, difficulty = null) => {
     try {
@@ -55,42 +60,57 @@ export const questionsAPI = {
         params.difficulty = difficulty;
       }
 
-      // NEW: Use words endpoint but maintain interface compatibility
+      console.log('🔍 Fetching words from /api/words/random:', params);
       const response = await api.get('/words/random', { params });
 
       if (response.data.success && response.data.questions) {
+        // Validate word-based question format
         response.data.questions.forEach((question, index) => {
-          // Validate the new word-based question format
-          if (!question.options || !Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || !opt.text || !opt.originalLetter)) {
-            console.warn(`Word ${index + 1} (ID: ${question.id}) has invalid options format.`);
-          }
           if (!question.word || !question.definition) {
             console.warn(`Word ${index + 1} (ID: ${question.id}) missing essential word data.`);
           }
           if (!question.example_sentence) {
             console.warn(`Word ${index + 1} (ID: ${question.id}) missing example sentence.`);
           }
+          if (!question.options || !Array.isArray(question.options)) {
+            console.warn(`Word ${index + 1} (ID: ${question.id}) has invalid options format.`);
+          }
+          if (question.difficulty_level && !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(question.difficulty_level)) {
+            console.warn(`Word ${index + 1} (ID: ${question.id}) has non-CEFR difficulty level:`, question.difficulty_level);
+          }
         });
+        
+        console.log(`✅ Successfully loaded ${response.data.questions.length} words`);
       }
+      
       return response.data;
     } catch (error) {
+      console.error('❌ Error fetching words:', error.message);
       throw error;
     }
   },
 
   getDifficultyLevels: async () => {
     try {
-      // NEW: Use words endpoint
+      console.log('🔍 Fetching difficulty levels from /api/words/difficulties');
       const response = await api.get('/words/difficulties');
+      
+      if (response.data.success && response.data.difficulties) {
+        console.log(`✅ Found ${response.data.difficulties.length} difficulty levels:`, 
+          response.data.difficulties.map(d => `${d.level} (${d.count} words)`).join(', '));
+      }
+      
       return response.data;
     } catch (error) {
+      console.error('❌ Error fetching difficulty levels:', error.message);
       throw error;
     }
   },
 
   checkAnswer: async (questionId, selectedOriginalLetter) => {
     try {
-      // NEW: Use words endpoint but maintain interface
+      console.log(`🔍 Checking answer for word ID ${questionId}, selected: ${selectedOriginalLetter}`);
+      
       const response = await api.post('/words/check', {
         questionId,
         selectedOriginalLetter
@@ -98,27 +118,31 @@ export const questionsAPI = {
 
       const data = response.data;
       if (data.success) {
+        console.log(`✅ Answer check result: ${data.isCorrect ? 'CORRECT' : 'INCORRECT'}`);
+        
+        // Log word info if available
+        if (data.word_info) {
+          console.log(`📚 Word: "${data.word_info.word}" (${data.word_info.part_of_speech}) - ${data.word_info.definition}`);
+        }
+        
         const requiredFields = ['isCorrect', 'correctOriginalLetter', 'correctAnswerText'];
         const missingFields = requiredFields.filter(field => data[field] === undefined);
-
+        
         if (missingFields.length > 0) {
           console.error('Missing required fields in checkAnswer response:', missingFields);
         }
-        
-        // NEW: Log word information if available
-        if (data.word_info) {
-          console.info('Word details:', data.word_info);
-        }
       }
+      
       return response.data;
     } catch (error) {
+      console.error('❌ Error checking answer:', error.message);
       throw error;
     }
   },
 
-  // LEGACY: Keep for backward compatibility
+  // DEPRECATED: Legacy methods (kept for compatibility)
   getPreviousQuestions: async () => {
-    console.warn("getPreviousQuestions is deprecated. Use historyAPI.getLearningHistory instead.");
+    console.warn("⚠️ getPreviousQuestions is deprecated. Use historyAPI.getLearningHistory instead.");
     try {
       const response = await api.get('/questions/previous');
       return response.data;
@@ -128,6 +152,7 @@ export const questionsAPI = {
   },
 
   getIncorrectQuestions: async () => {
+    console.warn("⚠️ getIncorrectQuestions not yet implemented for words system.");
     try {
       const response = await api.get('/questions/incorrect');
       return response.data;
@@ -137,90 +162,106 @@ export const questionsAPI = {
   },
 };
 
-// NEW: Words API with explicit naming (for future use)
+// NEW: Explicit Words API (for future use)
 export const wordsAPI = {
   getRandomWords: async (limit = 10, difficulty = null) => {
-    try {
-      const params = { limit };
-      if (difficulty && difficulty !== 'mixed') {
-        params.difficulty = difficulty;
-      }
-
-      const response = await api.get('/words/random', { params });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return questionsAPI.getRandomQuestions(limit, difficulty);
   },
 
   getDifficultyLevels: async () => {
-    try {
-      const response = await api.get('/words/difficulties');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return questionsAPI.getDifficultyLevels();
   },
 
   checkWordAnswer: async (wordId, selectedOriginalLetter) => {
-    try {
-      const response = await api.post('/words/check', {
-        questionId: wordId, // Keep same parameter name for compatibility
-        selectedOriginalLetter
-      });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return questionsAPI.checkAnswer(wordId, selectedOriginalLetter);
   },
 };
 
-// User Stats API (unchanged but updated for words context)
+// User Stats API (unchanged)
 export const userStatsAPI = {
   recordQuizSession: async (sessionDetails) => {
     try {
+      console.log('📝 Recording quiz session:', {
+        course_type: sessionDetails.course_type,
+        score: `${sessionDetails.score_correct}/${sessionDetails.score_total}`,
+        questions: sessionDetails.questions_answered_details?.length || 0
+      });
+      
       const response = await api.post('/users/session', sessionDetails);
+      
+      if (response.data.success) {
+        console.log('✅ Quiz session recorded successfully:', response.data.session_id);
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error recording quiz session:', error.message, error.originalError?.response?.data);
+      console.error('❌ Error recording quiz session:', error.message);
       throw error;
     }
   },
+
   getUserDashboardStats: async () => {
     try {
       const response = await api.get('/users/dashboard-stats');
+      
+      if (response.data.success) {
+        console.log('📊 Dashboard stats loaded:', {
+          streak: response.data.streak_days,
+          completedToday: response.data.completed_today,
+          totalWords: response.data.total_words_available || response.data.total_questions_available
+        });
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error.message, error.originalError?.response?.data);
+      console.error('❌ Error fetching dashboard stats:', error.message);
       throw error;
     }
   },
+
   getUserCourseStats: async () => {
     try {
       const response = await api.get('/users/course-stats');
+      
+      if (response.data.success && response.data.course_stats) {
+        console.log(`📈 Course stats loaded for ${response.data.course_stats.length} courses`);
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error fetching course stats:', error.message, error.originalError?.response?.data);
+      console.error('❌ Error fetching course stats:', error.message);
       throw error;
     }
   }
 };
 
-// Learning History API (updated for words)
+// Learning History API
 export const historyAPI = {
   getLearningHistory: async (page = 1, limit = 10, sortBy = 'date_desc') => {
     try {
       const params = { page, limit, sortBy };
+      console.log('📚 Fetching learning history:', params);
+      
       const response = await api.get('/history/learning', { params });
+      
+      if (response.data.success) {
+        console.log(`✅ Learning history loaded: ${response.data.data?.length || 0} records`);
+        
+        // Log metadata if available
+        if (response.data.metadata) {
+          console.log('📊 History metadata:', response.data.metadata);
+        }
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error fetching learning history:', error.message, error.originalError?.response?.data);
+      console.error('❌ Error fetching learning history:', error.message);
       throw error;
     }
   }
 };
 
-// UPDATED: Difficulty level utilities (now supports CEFR levels)
+// ENHANCED: Difficulty level utilities with CEFR support
 export const difficultyUtils = {
   getDisplayName: (difficulty) => {
     const names = {
@@ -228,13 +269,13 @@ export const difficultyUtils = {
       'intermediate': 'Intermediate', 
       'advanced': 'Advanced',
       'mixed': 'Mixed Levels',
-      // NEW: CEFR level support
+      // CEFR levels
       'A1': 'Beginner (A1)',
-      'A2': 'Beginner (A2)',
+      'A2': 'Elementary (A2)',
       'B1': 'Intermediate (B1)',
-      'B2': 'Intermediate (B2)',
+      'B2': 'Upper-Intermediate (B2)',
       'C1': 'Advanced (C1)',
-      'C2': 'Advanced (C2)'
+      'C2': 'Proficiency (C2)'
     };
     return names[difficulty] || difficulty;
   },
@@ -245,7 +286,7 @@ export const difficultyUtils = {
       'intermediate': '🎯',
       'advanced': '🚀',
       'mixed': '🌈',
-      // NEW: CEFR level icons
+      // CEFR levels
       'A1': '🌱',
       'A2': '🌿',
       'B1': '🎯',
@@ -262,7 +303,7 @@ export const difficultyUtils = {
       'intermediate': 'text-blue-600 bg-blue-100',
       'advanced': 'text-red-600 bg-red-100',
       'mixed': 'text-purple-600 bg-purple-100',
-      // NEW: CEFR level colors
+      // CEFR levels
       'A1': 'text-green-500 bg-green-50',
       'A2': 'text-green-600 bg-green-100',
       'B1': 'text-blue-500 bg-blue-50',
@@ -279,7 +320,7 @@ export const difficultyUtils = {
       'intermediate': 'Good for building stronger language skills',
       'advanced': 'Challenge yourself with complex vocabulary',
       'mixed': 'Words from all difficulty levels',
-      // NEW: CEFR level descriptions
+      // CEFR levels
       'A1': 'Basic vocabulary for everyday situations',
       'A2': 'Elementary words for common topics',
       'B1': 'Intermediate vocabulary for work and study',
@@ -301,6 +342,19 @@ export const difficultyUtils = {
       'C2': 'advanced'
     };
     return mapping[cefrLevel] || 'mixed';
+  },
+
+  // NEW: Get CEFR level info
+  getCEFRInfo: (level) => {
+    const info = {
+      'A1': { name: 'Breakthrough', description: 'Can understand and use familiar everyday expressions' },
+      'A2': { name: 'Waystage', description: 'Can understand sentences and frequently used expressions' },
+      'B1': { name: 'Threshold', description: 'Can understand main points of clear standard input' },
+      'B2': { name: 'Vantage', description: 'Can understand complex texts on abstract topics' },
+      'C1': { name: 'Proficiency', description: 'Can understand virtually everything heard or read' },
+      'C2': { name: 'Mastery', description: 'Can understand with ease virtually everything' }
+    };
+    return info[level] || { name: 'Unknown', description: 'Unknown CEFR level' };
   }
 };
 
@@ -320,6 +374,7 @@ export const courseUtils = {
       isGeneral: true
     };
   },
+  
   generateCourseType: (difficulty) => {
     if (difficulty === 'mixed' || difficulty === 'Mixed Levels') {
       return 'general';
@@ -328,23 +383,36 @@ export const courseUtils = {
   }
 };
 
-// UPDATED: Question utilities (now word utilities)
+// ENHANCED: Question utilities for word-based learning
 export const questionUtils = {
   validateQuestion: (question) => {
     const requiredFields = [
-      'id', 'word', 'definition', 'example_sentence', 'question_text', 'options', 'correct_answer_letter_from_db'
+      'id', 'word', 'definition', 'example_sentence', 'question_text', 
+      'options', 'correct_answer_letter_from_db'
     ];
-    if (!requiredFields.every(field => question[field] !== undefined)) return false;
-    if (!Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || typeof opt.text !== 'string' || typeof opt.originalLetter !== 'string')) return false;
+    
+    if (!requiredFields.every(field => question[field] !== undefined)) {
+      console.warn('Question missing required fields:', requiredFields.filter(field => !question[field]));
+      return false;
+    }
+    
+    if (!Array.isArray(question.options) || 
+        question.options.some(opt => typeof opt !== 'object' || !opt.text || !opt.originalLetter)) {
+      console.warn('Question has invalid options format');
+      return false;
+    }
+    
     return true;
   },
 
   getCorrectAnswerTextFromProcessedQuestion: (question) => {
-    if (!question || !question.options || !question.correct_answer_letter_from_db) {
+    if (!question?.options || !question.correct_answer_letter_from_db) {
       return null;
     }
-    const correctOption = question.options.find(opt => opt.originalLetter === question.correct_answer_letter_from_db);
-    return correctOption ? correctOption.text : null;
+    const correctOption = question.options.find(opt => 
+      opt.originalLetter === question.correct_answer_letter_from_db
+    );
+    return correctOption?.text || null;
   },
 
   hasExplanation: (question) => {
@@ -354,14 +422,15 @@ export const questionUtils = {
   formatQuestion: (question) => {
     return {
       ...question,
-      hasContext: !!question.example_sentence, // Changed from paragraph to example_sentence
+      hasContext: !!question.example_sentence,
       hasExplanation: questionUtils.hasExplanation(question),
-      isWordBased: true, // NEW: Indicates this is from words table
-      wordDetails: { // NEW: Extract word-specific details
+      isWordBased: true,
+      wordDetails: {
         word: question.word,
         partOfSpeech: question.part_of_speech,
         definition: question.definition,
-        difficultyLevel: question.difficulty_level
+        difficultyLevel: question.difficulty_level,
+        exampleSentence: question.example_sentence
       }
     };
   },
@@ -375,10 +444,28 @@ export const questionUtils = {
   highlightWordInSentence: (sentence, word) => {
     if (!sentence || !word) return sentence;
     return sentence.replace(new RegExp(`\\b${word}\\b`, 'gi'), `**${word}**`);
+  },
+
+  // NEW: Extract learning insights
+  getWordLearningInsight: (question, isCorrect) => {
+    if (!question.wordDetails) return null;
+    
+    const { word, partOfSpeech, difficultyLevel } = question.wordDetails;
+    const cefrInfo = difficultyUtils.getCEFRInfo(difficultyLevel);
+    
+    return {
+      word,
+      partOfSpeech,
+      difficultyLevel,
+      cefrName: cefrInfo.name,
+      learningTip: isCorrect 
+        ? `Great! You've mastered "${word}" at ${difficultyLevel} level.`
+        : `Keep practicing "${word}" - it's a ${difficultyLevel} (${cefrInfo.name}) level word.`
+    };
   }
 };
 
-// Health check function (unchanged)
+// Health check function
 export const healthCheck = async () => {
   try {
     const healthCheckUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '/health');

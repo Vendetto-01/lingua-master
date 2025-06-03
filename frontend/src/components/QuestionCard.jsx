@@ -1,5 +1,6 @@
-// frontend/src/components/QuestionCard.jsx (UPDATED for words)
+// frontend/src/components/QuestionCard.jsx (ENHANCED for words)
 import React from 'react'
+import { difficultyUtils, questionUtils } from '../services/api'
 
 const QuestionCard = ({
   question,
@@ -18,15 +19,16 @@ const QuestionCard = ({
 }) => {
   if (!question) return null
 
-  // NEW: Extract word-specific information
+  // Extract word-specific information
   const wordInfo = question.wordDetails || {
     word: question.word,
     partOfSpeech: question.part_of_speech,
     definition: question.definition,
-    difficultyLevel: question.difficulty_level
+    difficultyLevel: question.difficulty_level,
+    exampleSentence: question.example_sentence
   };
 
-  // NEW: Helper to highlight word in example sentence
+  // Helper to highlight word in example sentence
   const highlightWordInSentence = (sentence, word) => {
     if (!sentence || !word) return sentence;
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
@@ -35,7 +37,9 @@ const QuestionCard = ({
         return (
           <React.Fragment key={index}>
             {part}
-            <strong className="text-primary-600 bg-primary-50 px-1 rounded">{word}</strong>
+            <strong className="text-primary-600 bg-primary-100 px-1.5 py-0.5 rounded-md font-semibold">
+              {word}
+            </strong>
           </React.Fragment>
         );
       }
@@ -43,57 +47,76 @@ const QuestionCard = ({
     });
   };
 
+  // Get CEFR level info
+  const cefrInfo = wordInfo.difficultyLevel ? 
+    difficultyUtils.getCEFRInfo(wordInfo.difficultyLevel) : null;
+
   return (
     <div className="card-elevated">
       {/* Question Progress */}
       <div className="flex justify-between items-center mb-6">
         <div className="text-sm text-gray-500">
-          Question {currentIndex + 1} of {totalQuestions}
+          Word {currentIndex + 1} of {totalQuestions}
         </div>
         <div className="text-sm font-medium text-primary-600">
           {Math.round(((currentIndex + 1) / totalQuestions) * 100)}% Complete
         </div>
       </div>
 
-      {/* NEW: Word Information Header */}
+      {/* Word Information Header */}
       {wordInfo.word && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-3xl font-bold text-gray-900 flex items-center">
                 {wordInfo.word}
+                {wordInfo.partOfSpeech && (
+                  <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full ml-3 font-normal">
+                    {wordInfo.partOfSpeech}
+                  </span>
+                )}
               </div>
-              {wordInfo.partOfSpeech && (
-                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                  {wordInfo.partOfSpeech}
-                </span>
-              )}
             </div>
             {wordInfo.difficultyLevel && (
-              <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                {wordInfo.difficultyLevel}
-              </span>
+              <div className="flex flex-col items-end">
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${difficultyUtils.getColorClass(wordInfo.difficultyLevel)}`}>
+                  {wordInfo.difficultyLevel}
+                </span>
+                {cefrInfo && (
+                  <span className="text-xs text-gray-500 mt-1">
+                    {cefrInfo.name}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
       )}
 
       {/* Example Sentence Context */}
-      {question.example_sentence && (
+      {wordInfo.exampleSentence && (
         <div className="mb-6">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
-            <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">
-              Example Sentence
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100 relative">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Example Sentence
+              </div>
+              <div className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded-full">
+                Context Clue
+              </div>
             </div>
-            <p className="text-gray-700 leading-relaxed italic text-lg">
-              "{highlightWordInSentence(question.example_sentence, wordInfo.word)}"
+            <p className="text-gray-800 leading-relaxed text-lg font-medium">
+              "{highlightWordInSentence(wordInfo.exampleSentence, wordInfo.word)}"
             </p>
           </div>
         </div>
       )}
 
       {/* LEGACY: Support old paragraph format for backward compatibility */}
-      {question.paragraph && !question.example_sentence && (
+      {question.paragraph && !wordInfo.exampleSentence && (
         <div className="mb-6">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
             <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">
@@ -108,165 +131,135 @@ const QuestionCard = ({
 
       {/* Main Question */}
       <div className="mb-8">
-        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed">
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed mb-3">
           {question.question_text}
         </h2>
         
-        {/* NEW: Additional context for word-based questions */}
-        {wordInfo.word && !question.question_text.includes('What does') && (
-          <p className="text-gray-600 mt-2">
-            What does the word "<strong>{wordInfo.word}</strong>" mean in this context?
-          </p>
+        {/* Enhanced context for word-based questions */}
+        {wordInfo.word && (
+          <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-primary-500">
+            <p className="text-gray-700 font-medium">
+              💭 Think about how "<strong className="text-primary-600">{wordInfo.word}</strong>" is used in the sentence above.
+            </p>
+          </div>
         )}
       </div>
 
       {/* Answer Options */}
       <div className="space-y-3 mb-8">
         {question.options.map((option, index) => {
-          let optionClass = 'quiz-option text-left'
-          let iconClass = 'w-6 h-6 mr-3 flex-shrink-0'
+          let optionClass = 'quiz-option text-left group hover:shadow-md transition-all duration-200'
+          let iconClass = 'w-7 h-7 mr-4 flex-shrink-0 transition-all duration-200'
           let icon = null
 
           if (showResult) {
             if (index === correctAnswerIndex) {
-              optionClass += ' quiz-option-correct'
+              optionClass += ' quiz-option-correct ring-2 ring-success-200'
               icon = (
-                <div className={`${iconClass} bg-success-500 rounded-full flex items-center justify-center`}>
+                <div className={`${iconClass} bg-success-500 rounded-full flex items-center justify-center shadow-lg`}>
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>
               )
             } else if (index === selectedAnswer && !isCorrect) {
-              optionClass += ' quiz-option-incorrect'
+              optionClass += ' quiz-option-incorrect ring-2 ring-danger-200'
               icon = (
-                <div className={`${iconClass} bg-danger-500 rounded-full flex items-center justify-center`}>
+                <div className={`${iconClass} bg-danger-500 rounded-full flex items-center justify-center shadow-lg`}>
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )
-            } else {
-              icon = (
-                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center`}>
-                  <span className="text-gray-600 text-sm font-medium">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                </div>
-              )
-            }
-          } else {
-            if (selectedAnswer === index) {
-              optionClass += ' quiz-option-selected'
-              icon = (
-                <div className={`${iconClass} bg-primary-500 rounded-full flex items-center justify-center`}>
-                  <span className="text-white text-sm font-medium">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                </div>
-              )
-            } else {
-              icon = (
-                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors`}>
-                  <span className="text-gray-600 text-sm font-medium">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                </div>
-              )
-            }
-          }
-
-          return (
-            <button
-              key={index}
-              onClick={() => onAnswerSelect(index)}
-              disabled={showResult}
-              className={optionClass}
-            >
-              <div className="flex items-center">
-                {icon}
-                <span className="flex-1 text-left">{option.text || option}</span>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Result Feedback */}
-      {showResult && (
-        <div className={`mb-6 p-4 rounded-lg animate-fade-in ${
-          isCorrect 
-            ? 'bg-success-50 border border-success-200' 
-            : 'bg-danger-50 border border-danger-200'
-        }`}>
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              {isCorrect ? (
-                <div className="w-8 h-8 bg-success-500 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ) : (
-                <div className="w-8 h-8 bg-danger-500 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </div>
               )}
             </div>
             <div className="flex-1">
-              <p className={`font-semibold text-lg ${
+              <p className={`font-bold text-xl mb-2 ${
                 isCorrect ? 'text-success-800' : 'text-danger-800'
               }`}>
-                {isCorrect ? '🎉 Excellent!' : '💡 Not quite right'}
+                {isCorrect ? '🎉 Excellent!' : '📚 Learning Opportunity!'}
               </p>
-              <p className={`text-sm mt-1 ${
+              <p className={`text-sm mb-3 ${
                 isCorrect ? 'text-success-700' : 'text-danger-700'
               }`}>
                 {isCorrect 
-                  ? 'Great job! You got it right.' 
-                  : `The correct answer is: ${correctAnswerText || question.options[correctAnswerIndex]?.text || question.options[correctAnswerIndex]}`
+                  ? `Perfect! You understand how "${wordInfo.word}" is used.` 
+                  : `The correct answer is: ${correctAnswerText || question.options[correctAnswerIndex]?.text}`
                 }
               </p>
+              
+              {/* Word Progress Badge */}
+              {wordInfo.difficultyLevel && (
+                <div className="mb-3">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                    isCorrect ? 'bg-success-100 text-success-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {isCorrect ? '✅' : '📖'} {wordInfo.difficultyLevel} Level Word
+                    {cefrInfo && ` • ${cefrInfo.name}`}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Enhanced Explanation Section for Words */}
+          {/* Enhanced Explanation Section */}
           {explanation && explanation.trim().length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-start space-x-2">
-                <div className="flex-shrink-0 mt-0.5">
-                  <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
-                    📚 Word Definition:
-                    {wordInfo.difficultyLevel && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                        {wordInfo.difficultyLevel}
-                      </span>
-                    )}
-                  </h4>
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    {explanation}
-                  </p>
-                  
-                  {/* NEW: Additional word information */}
-                  {wordInfo.word && wordInfo.partOfSpeech && (
-                    <div className="mt-3 text-xs text-gray-500">
-                      <strong>{wordInfo.word}</strong> ({wordInfo.partOfSpeech})
-                      {wordInfo.difficultyLevel && ` • ${wordInfo.difficultyLevel} level`}
+            <div className="mt-5 pt-5 border-t border-gray-200">
+              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
                     </div>
-                  )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-gray-800 mb-2 flex items-center">
+                      📚 Word Definition
+                      {wordInfo.difficultyLevel && (
+                        <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          {wordInfo.difficultyLevel}
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                      {explanation}
+                    </p>
+                    
+                    {/* Additional word information */}
+                    {wordInfo.word && wordInfo.partOfSpeech && (
+                      <div className="bg-gray-50 rounded-md p-3 border">
+                        <div className="text-xs text-gray-600 mb-1">Word Analysis:</div>
+                        <div className="text-sm">
+                          <strong className="text-primary-600">{wordInfo.word}</strong>
+                          <span className="text-gray-500"> ({wordInfo.partOfSpeech})</span>
+                          {wordInfo.difficultyLevel && (
+                            <span className="text-gray-500"> • {wordInfo.difficultyLevel} level</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Learning Tip */}
+          <div className="mt-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-3 border border-yellow-200">
+            <div className="flex items-center text-sm text-yellow-800">
+              <svg className="w-4 h-4 mr-2 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+              </svg>
+              <strong>Learning Tip:</strong>
+              <span className="ml-1">
+                {isCorrect 
+                  ? `Great job! Try using "${wordInfo.word}" in your own sentence.`
+                  : `Study tip: Remember that "${wordInfo.word}" means "${wordInfo.definition}"`
+                }
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -276,7 +269,7 @@ const QuestionCard = ({
           <button
             onClick={onSubmitAnswer}
             disabled={selectedAnswer === null || submitting}
-            className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed py-4 text-lg"
           >
             {submitting ? (
               <>
@@ -295,10 +288,10 @@ const QuestionCard = ({
         ) : (
           <button
             onClick={onNextQuestion}
-            className="flex-1 btn-primary flex items-center justify-center space-x-2"
+            className="flex-1 btn-primary flex items-center justify-center space-x-2 py-4 text-lg"
           >
             <span>
-              {currentIndex < totalQuestions - 1 ? 'Next Word' : 'Finish Quiz'}
+              {currentIndex < totalQuestions - 1 ? 'Next Word' : 'Complete Quiz'}
             </span>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -307,30 +300,52 @@ const QuestionCard = ({
         )}
       </div>
 
-      {/* Tips and Study Notes */}
+      {/* Enhanced Help Text */}
       {!showResult && selectedAnswer === null && (
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">
-            💡 Select the definition that best matches the word's meaning in the sentence
-          </p>
+        <div className="mt-6 text-center">
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <p className="text-sm text-blue-700 font-medium mb-2">
+              💡 How to Answer
+            </p>
+            <p className="text-xs text-blue-600">
+              Read the highlighted word in the sentence above, then select the definition that best matches its meaning in that context.
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Enhanced Study Tip for Word Learning */}
-      {showResult && explanation && explanation.trim().length > 0 && (
-        <div className="mt-4 text-center">
-          <p className="text-xs text-gray-500 italic">
-            📚 Study tip: Try using "{wordInfo.word}" in your own sentence to reinforce learning!
-          </p>
+      {/* Enhanced Study Motivation */}
+      {showResult && explanation && (
+        <div className="mt-6 text-center">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+            <p className="text-sm text-purple-700 font-medium mb-1">
+              🎯 Keep Learning!
+            </p>
+            <p className="text-xs text-purple-600">
+              {isCorrect 
+                ? `You're building strong vocabulary! ${wordInfo.difficultyLevel} level words are getting easier for you.`
+                : `Every mistake is a step forward. Review "${wordInfo.word}" and you'll remember it next time!`
+              }
+            </p>
+          </div>
         </div>
       )}
 
-      {/* NEW: Word Learning Progress Indicator */}
+      {/* Word Learning Progress Indicator */}
       {wordInfo.difficultyLevel && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
+        <div className="mt-6 pt-4 border-t border-gray-100">
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Learning: {wordInfo.word}</span>
-            <span>Level: {wordInfo.difficultyLevel}</span>
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">Learning:</span>
+              <span className="text-primary-600 font-semibold">{wordInfo.word}</span>
+              <span>({wordInfo.partOfSpeech})</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span>Level:</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${difficultyUtils.getColorClass(wordInfo.difficultyLevel)}`}>
+                {wordInfo.difficultyLevel}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -338,4 +353,72 @@ const QuestionCard = ({
   )
 }
 
-export default QuestionCard
+export default QuestionCard8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )
+            } else {
+              icon = (
+                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center`}>
+                  <span className="text-gray-600 text-sm font-medium">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </div>
+              )
+            }
+          } else {
+            if (selectedAnswer === index) {
+              optionClass += ' quiz-option-selected ring-2 ring-primary-300 shadow-md'
+              icon = (
+                <div className={`${iconClass} bg-primary-500 rounded-full flex items-center justify-center shadow-lg group-hover:scale-105`}>
+                  <span className="text-white text-sm font-semibold">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </div>
+              )
+            } else {
+              icon = (
+                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center hover:bg-primary-100 group-hover:scale-105`}>
+                  <span className="text-gray-600 text-sm font-medium group-hover:text-primary-600">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </div>
+              )
+            }
+          }
+
+          return (
+            <button
+              key={index}
+              onClick={() => onAnswerSelect(index)}
+              disabled={showResult}
+              className={optionClass}
+            >
+              <div className="flex items-center">
+                {icon}
+                <span className="flex-1 text-left font-medium">{option.text || option}</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Enhanced Result Feedback */}
+      {showResult && (
+        <div className={`mb-6 p-5 rounded-xl animate-fade-in border-2 ${
+          isCorrect 
+            ? 'bg-success-50 border-success-200' 
+            : 'bg-danger-50 border-danger-200'
+        }`}>
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              {isCorrect ? (
+                <div className="w-10 h-10 bg-success-500 rounded-full flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-10 h-10 bg-danger-500 rounded-full flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10
