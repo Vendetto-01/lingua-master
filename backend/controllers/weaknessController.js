@@ -1,6 +1,16 @@
 // backend/controllers/weaknessController.js
 const supabase = require('../config/supabase');
 
+// Helper function to shuffle array (wordsController.js'den kopyalandı)
+const shuffleArray = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 // Bir kelimeyi kullanıcının zayıflık listesine ekler veya mevcutsa durumunu günceller
 exports.addOrUpdateWeaknessItem = async (req, res) => {
   const user_id = req.user?.user_id || req.user?.id;
@@ -140,34 +150,51 @@ exports.getWeaknessTrainingQuestions = async (req, res) => {
     }
 
     // Soruları rastgele karıştır ve limitle
-    const shuffledQuestions = wordsDetails.sort(() => 0.5 - Math.random());
-    const limitedQuestions = shuffledQuestions.slice(0, limit);
-    
-    // Frontend'in beklediği formatta (questionUtils.formatQuestion benzeri) formatla
-    // Bu formatlama questionsController.js'deki getRandomQuestions ile tutarlı olmalı
-    const formattedQuestions = limitedQuestions.map(q => ({
+    const shuffledWordsDetails = shuffleArray(wordsDetails); // Önce tüm kelimeleri karıştır
+    const limitedWords = shuffledWordsDetails.slice(0, limit); // Sonra limitle
+
+    const formattedQuestions = limitedWords.map(q => {
+      // Seçenekleri oluştur ve doğrula
+      const optionsSource = [
+        { text: q.option_a, originalLetter: 'A' }, // Kural: option_a her zaman doğru cevabın metnini içerir
+        { text: q.option_b, originalLetter: 'B' },
+        { text: q.option_c, originalLetter: 'C' },
+        { text: q.option_d, originalLetter: 'D' }
+      ];
+
+      const validOptions = optionsSource.filter(opt => opt && typeof opt.text === 'string' && opt.text.trim() !== '');
+
+      // Eğer geçerli seçenek sayısı (özellikle doğru cevap olan A dahil) yetersizse bu soruyu atla
+      if (validOptions.length < 2 || !validOptions.find(opt => opt.originalLetter === 'A')) {
+        console.warn(`Word ID ${q.id} ("${q.word}") does not have enough valid options or missing correct option A. Skipping for weakness training.`);
+        return null; // Bu soru kullanılamaz
+      }
+
+      const shuffledOptions = shuffleArray(validOptions);
+      const questionText = q.question_text || `What does the word "${q.word}" mean?`;
+
+      return {
         id: q.id,
-        question_text: q.question_text || `What is the definition of "${q.word}"?`, // question_text yoksa varsayılan oluştur
         word: q.word,
         part_of_speech: q.part_of_speech,
         definition: q.definition,
         difficulty_level: q.difficulty_level,
         example_sentence: q.example_sentence,
-        // Seçenekler burada oluşturulmalı. questionsController'daki gibi bir mantıkla.
-        // Şimdilik sadece kelime bilgisini döndürüyoruz, seçenek oluşturma daha karmaşık.
-        // Basitlik adına, seçenekleri frontend'de veya bu endpoint'te oluşturmak gerekebilir.
-        // VEYA words tablosunda option_a,b,c,d varsa onları kullanabiliriz.
-        options: [ // Bu kısım words tablonuzdaki option_a,b,c,d'ye göre düzenlenmeli
-            { text: q.option_a, originalLetter: 'A' },
-            { text: q.option_b, originalLetter: 'B' },
-            { text: q.option_c, originalLetter: 'C' },
-            { text: q.option_d, originalLetter: 'D' }
-        ].filter(opt => opt.text), // Sadece metni olan seçenekleri al
-        correct_answer_letter_from_db: q.correct_answer_letter, // words tablonuzda böyle bir sütun varsa
-        explanation: q.explanation // words tablonuzda böyle bir sütun varsa
-    }));
+        question_text: questionText,
+        options: shuffledOptions, // Karıştırılmış ve doğrulanmış seçenekler
+        correct_answer_letter_from_db: 'A', // Kural: Orijinal 'A' seçeneği her zaman doğrudur
+        explanation: q.definition, // wordsController ile tutarlı
+        // Frontend'in ihtiyaç duyabileceği diğer alanlar (QuizPage.jsx'deki formatQuestion'a bakılabilir)
+        paragraph: q.example_sentence,
+        difficulty: q.difficulty_level
+      };
+    }).filter(q => q !== null); // Geçersiz formatlanmış soruları (null olanları) filtrele
 
-
+    if (formattedQuestions.length === 0 && limitedWords.length > 0) {
+        // Bu durum, tüm çekilen kelimelerin formatlama sırasında (örn: yetersiz seçenek) elendiği anlamına gelir.
+        return res.status(200).json({ success: true, questions: [], message: 'Found items in your study list, but they could not be formatted into valid questions at this time.' });
+    }
+    
     res.status(200).json({ success: true, questions: formattedQuestions });
 
   } catch (err) {
