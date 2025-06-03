@@ -1,4 +1,4 @@
-// frontend/src/components/QuestionCard.jsx (ENHANCED for words)
+// frontend/src/components/QuestionCard.jsx (FIXED - Clean Display)
 import React from 'react'
 import { difficultyUtils, questionUtils } from '../services/api'
 
@@ -28,7 +28,7 @@ const QuestionCard = ({
     exampleSentence: question.example_sentence
   };
 
-  // Helper to highlight word in example sentence
+  // Helper to highlight word in example sentence with bold and underline
   const highlightWordInSentence = (sentence, word) => {
     if (!sentence || !word) return sentence;
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
@@ -37,7 +37,7 @@ const QuestionCard = ({
         return (
           <React.Fragment key={index}>
             {part}
-            <strong className="text-primary-600 bg-primary-100 px-1.5 py-0.5 rounded-md font-semibold">
+            <strong className="text-primary-600 bg-primary-100 px-1.5 py-0.5 rounded-md font-bold underline decoration-2 decoration-primary-600">
               {word}
             </strong>
           </React.Fragment>
@@ -45,6 +45,11 @@ const QuestionCard = ({
       }
       return part;
     });
+  };
+
+  // Generate clean question text without example sentence and part of speech
+  const generateCleanQuestionText = (word) => {
+    return `What does the word "${word}" mean?`;
   };
 
   // Get CEFR level info
@@ -93,7 +98,7 @@ const QuestionCard = ({
         </div>
       )}
 
-      {/* Example Sentence Context */}
+      {/* Example Sentence Context - WITH HIGHLIGHTED WORD */}
       {wordInfo.exampleSentence && (
         <div className="mb-6">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100 relative">
@@ -129,17 +134,17 @@ const QuestionCard = ({
         </div>
       )}
 
-      {/* Main Question */}
+      {/* CLEAN Main Question - No bold, no part of speech, no example sentence */}
       <div className="mb-8">
-        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed mb-3">
-          {question.question_text}
+        <h2 className="text-xl sm:text-2xl font-medium text-gray-900 leading-relaxed mb-3">
+          {generateCleanQuestionText(wordInfo.word)}
         </h2>
         
-        {/* Enhanced context for word-based questions */}
+        {/* Enhanced context hint */}
         {wordInfo.word && (
           <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-primary-500">
             <p className="text-gray-700 font-medium">
-              💭 Think about how "<strong className="text-primary-600">{wordInfo.word}</strong>" is used in the sentence above.
+              💭 Look at how "<strong className="text-primary-600">{wordInfo.word}</strong>" is used in the sentence above.
             </p>
           </div>
         )}
@@ -167,6 +172,74 @@ const QuestionCard = ({
               icon = (
                 <div className={`${iconClass} bg-danger-500 rounded-full flex items-center justify-center shadow-lg`}>
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )
+            } else {
+              icon = (
+                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center`}>
+                  <span className="text-gray-600 text-sm font-medium">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </div>
+              )
+            }
+          } else {
+            if (selectedAnswer === index) {
+              optionClass += ' quiz-option-selected ring-2 ring-primary-300 shadow-md'
+              icon = (
+                <div className={`${iconClass} bg-primary-500 rounded-full flex items-center justify-center shadow-lg group-hover:scale-105`}>
+                  <span className="text-white text-sm font-semibold">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </div>
+              )
+            } else {
+              icon = (
+                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center hover:bg-primary-100 group-hover:scale-105`}>
+                  <span className="text-gray-600 text-sm font-medium group-hover:text-primary-600">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </div>
+              )
+            }
+          }
+
+          return (
+            <button
+              key={index}
+              onClick={() => onAnswerSelect(index)}
+              disabled={showResult}
+              className={optionClass}
+            >
+              <div className="flex items-center">
+                {icon}
+                <span className="flex-1 text-left font-medium">{option.text || option}</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Enhanced Result Feedback */}
+      {showResult && (
+        <div className={`mb-6 p-5 rounded-xl animate-fade-in border-2 ${
+          isCorrect 
+            ? 'bg-success-50 border-success-200' 
+            : 'bg-danger-50 border-danger-200'
+        }`}>
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              {isCorrect ? (
+                <div className="w-10 h-10 bg-success-500 rounded-full flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-10 h-10 bg-danger-500 rounded-full flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -308,7 +381,7 @@ const QuestionCard = ({
               💡 How to Answer
             </p>
             <p className="text-xs text-blue-600">
-              Read the highlighted word in the sentence above, then select the definition that best matches its meaning in that context.
+              Look at the highlighted word in the sentence above, then select the definition that best matches its meaning.
             </p>
           </div>
         </div>
@@ -353,72 +426,4 @@ const QuestionCard = ({
   )
 }
 
-export default QuestionCard8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )
-            } else {
-              icon = (
-                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center`}>
-                  <span className="text-gray-600 text-sm font-medium">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                </div>
-              )
-            }
-          } else {
-            if (selectedAnswer === index) {
-              optionClass += ' quiz-option-selected ring-2 ring-primary-300 shadow-md'
-              icon = (
-                <div className={`${iconClass} bg-primary-500 rounded-full flex items-center justify-center shadow-lg group-hover:scale-105`}>
-                  <span className="text-white text-sm font-semibold">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                </div>
-              )
-            } else {
-              icon = (
-                <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center hover:bg-primary-100 group-hover:scale-105`}>
-                  <span className="text-gray-600 text-sm font-medium group-hover:text-primary-600">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                </div>
-              )
-            }
-          }
-
-          return (
-            <button
-              key={index}
-              onClick={() => onAnswerSelect(index)}
-              disabled={showResult}
-              className={optionClass}
-            >
-              <div className="flex items-center">
-                {icon}
-                <span className="flex-1 text-left font-medium">{option.text || option}</span>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Enhanced Result Feedback */}
-      {showResult && (
-        <div className={`mb-6 p-5 rounded-xl animate-fade-in border-2 ${
-          isCorrect 
-            ? 'bg-success-50 border-success-200' 
-            : 'bg-danger-50 border-danger-200'
-        }`}>
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0">
-              {isCorrect ? (
-                <div className="w-10 h-10 bg-success-500 rounded-full flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ) : (
-                <div className="w-10 h-10 bg-danger-500 rounded-full flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10
+export default QuestionCard
