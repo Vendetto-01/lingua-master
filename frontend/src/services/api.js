@@ -230,6 +230,35 @@ export const questionsAPI = {
       console.error('❌ Error fetching weakness items count:', error.message);
       throw error; // Propagate error to be handled by caller
     }
+  },
+
+  // Reported Questions related API calls
+  getUserReportedQuestions: async (limit = 10) => {
+    try {
+      console.log(`📋 Fetching user's reported questions, limit: ${limit}`);
+      const response = await api.get('/reports/user-questions', { params: { limit } });
+      if (response.data.success && response.data.questions) {
+        console.log(`✅ Successfully loaded ${response.data.questions.length} reported questions.`);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching user reported questions:', error.message);
+      throw error;
+    }
+  },
+
+  dismissUserReport: async (report_id) => {
+    try {
+      console.log(`🙈 Dismissing report ${report_id} for user.`);
+      const response = await api.post(`/reports/${report_id}/dismiss`);
+      if (response.data.success) {
+        console.log(`✅ Report ${report_id} dismissed successfully.`);
+      }
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error dismissing report ${report_id}:`, error.message);
+      throw error;
+    }
   }
 };
 

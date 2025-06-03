@@ -24,6 +24,7 @@ const HomePage = () => {
   });
   const [userCourseStats, setUserCourseStats] = useState([]);
   const [weaknessCourseActive, setWeaknessCourseActive] = useState(false); // State for Weakness Training
+  const [reportedQuestionsCourseActive, setReportedQuestionsCourseActive] = useState(false); // State for Reported Questions
 
   // Load initial data on component mount
   useEffect(() => {
@@ -44,11 +45,18 @@ const HomePage = () => {
 
     try {
       // Parallel API calls for better performance
-      const [difficultyResponse, dashboardResponse, userCoursesResponse, weaknessCountResponse] = await Promise.all([
+      const [
+        difficultyResponse,
+        dashboardResponse,
+        userCoursesResponse,
+        weaknessCountResponse,
+        userReportedQuestionsResponse // Fetch user's reported questions (check for availability)
+      ] = await Promise.all([
         questionsAPI.getDifficultyLevels(),
         userStatsAPI.getUserDashboardStats(),
         userStatsAPI.getUserCourseStats(),
-        questionsAPI.getWeaknessItemsCount() // Fetch weakness items count
+        questionsAPI.getWeaknessItemsCount(),
+        questionsAPI.getUserReportedQuestions({ limit: 1 }) // Fetch 1 to check if any exist
       ]);
 
       // Handle difficulty levels
@@ -87,8 +95,18 @@ const HomePage = () => {
             console.warn('Failed to load weakness items count:', weaknessCountResponse.message);
         }
       }
+      
+      // Handle reported questions course activation
+      if (userReportedQuestionsResponse.success && userReportedQuestionsResponse.questions && userReportedQuestionsResponse.questions.length > 0) {
+        setReportedQuestionsCourseActive(true);
+      } else {
+        setReportedQuestionsCourseActive(false);
+        if (!userReportedQuestionsResponse.success) {
+            console.warn('Failed to load user reported questions for count:', userReportedQuestionsResponse.message);
+        }
+      }
 
-    } catch (err) {
+    } catch (err) { // Added missing opening brace
       console.error('Error loading homepage data:', err);
       setError(err.message || 'Failed to load essential data. Please try again.');
     } finally {
@@ -101,12 +119,17 @@ const HomePage = () => {
     
     if (courseId === 'learning-history') {
       navigate('/learning-history');
-    } else if (courseId === 'weakness-training') {
+    } else if (courseId === 'weakness-training' && weaknessCourseActive) { // Check if active
       navigate('/quiz/weakness-training');
-    } else {
+    } else if (courseId === 'reported-questions' && reportedQuestionsCourseActive) { // Check if active
+      navigate('/quiz/reported-questions');
+    } else if (courseId !== 'weakness-training' && courseId !== 'reported-questions') { // For other courses
       navigate(`/quiz/${courseId}`);
     }
+    // If weakness or reported course is clicked but not active, do nothing or show a message (handled by button disabled state)
   };
+
+  // Removed the erroneous duplicate/empty dismissResults definition that was here
 
   const dismissResults = () => {
     setShowQuizResults(false);
@@ -207,6 +230,22 @@ const HomePage = () => {
         'Practice your incorrect answers',
         'Reinforce challenging vocabulary',
         'Personalized learning experience'
+      ]
+    },
+    {
+      id: 'reported-questions',
+      title: 'My Reported Questions',
+      description: 'Review questions you have previously reported and see their status or re-evaluate them.',
+      icon: '🚩',
+      buttonText: reportedQuestionsCourseActive ? 'Review Reported' : 'No Reported Yet',
+      buttonColor: reportedQuestionsCourseActive ? 'btn-info' : 'btn-disabled',
+      isActive: reportedQuestionsCourseActive,
+      difficulty: 'Review',
+      questionsCount: reportedQuestionsCourseActive ? 'Your Reports' : 'Empty',
+      features: [
+        'See questions you reported',
+        'Re-evaluate or dismiss from this list',
+        'Helps track issue resolution (future)'
       ]
     },
   ];

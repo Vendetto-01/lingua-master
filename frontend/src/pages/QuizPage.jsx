@@ -32,6 +32,11 @@ const QuizPage = () => {
   const [weaknessSubmitting, setWeaknessSubmitting] = useState(false);
   const [weaknessStatusMessage, setWeaknessStatusMessage] = useState(''); // For add/remove feedback
 
+  // Reported Questions state'leri
+  const [dismissingReportItem, setDismissingReportItem] = useState(false);
+  const [dismissReportItemMessage, setDismissReportItemMessage] = useState('');
+
+
   const [answerDetails, setAnswerDetails] = useState({
     correctAnswerText: '',
     correctOriginalLetter: '',
@@ -57,16 +62,19 @@ const QuizPage = () => {
   }, [courseType]);
 
   const isWeaknessTrainingCourse = courseType === 'weakness-training';
+  const isReportedQuestionsCourse = courseType === 'reported-questions';
 
   const loadQuestions = async () => {
     try {
       setLoading(true);
       setError('');
-      setQuestions([]); // Reset questions before loading new ones
-      setCurrentQuestionIndex(0); // Reset index
-      setScore({ correct: 0, total: 0 }); // Reset score
+      setQuestions([]);
+      setCurrentQuestionIndex(0);
+      setScore({ correct: 0, total: 0 });
       setShowResult(false);
       setSelectedAnswerIndex(null);
+      setWeaknessStatusMessage('');
+      setDismissReportItemMessage('');
 
 
       const questionLimit = 10;
@@ -74,11 +82,18 @@ const QuizPage = () => {
 
       if (isWeaknessTrainingCourse) {
         setQuizInfo({
-            difficulty: 'custom', // or 'varied'
+            difficulty: 'custom',
             displayName: 'Weakness Training',
-            icon: '💪' // Example icon
+            icon: '💪'
         });
         response = await questionsAPI.getWeaknessTrainingQuestions(questionLimit);
+      } else if (isReportedQuestionsCourse) {
+        setQuizInfo({
+            difficulty: 'review',
+            displayName: 'My Reported Questions',
+            icon: '🗒️'
+        });
+        response = await questionsAPI.getUserReportedQuestions(questionLimit);
       } else {
         setQuizInfo({
             difficulty: parsedCourseInfo.difficulty,
@@ -96,7 +111,6 @@ const QuizPage = () => {
         }
       }
 
-
       if (response.success && response.questions && response.questions.length > 0) {
         const validQuestions = response.questions.filter(questionUtils.validateQuestion);
         if (validQuestions.length !== response.questions.length) {
@@ -109,7 +123,9 @@ const QuizPage = () => {
           setQuestions(validQuestions.map(q => questionUtils.formatQuestion(q)));
         }
       } else {
-        const courseNameForError = isWeaknessTrainingCourse ? 'Weakness Training' : quizInfo.displayName;
+        let courseNameForError = quizInfo.displayName;
+        if(isWeaknessTrainingCourse) courseNameForError = 'Weakness Training';
+        if(isReportedQuestionsCourse) courseNameForError = 'My Reported Questions';
         setError(response.message || `No questions available for ${courseNameForError}.`);
         setQuestions([]);
       }
@@ -330,6 +346,31 @@ const QuizPage = () => {
     }
   };
 
+  const handleDismissReportItem = async () => {
+    if (!currentQuestion || !currentQuestion.report_id || dismissingReportItem) return;
+    setDismissingReportItem(true);
+    setDismissReportItemMessage('');
+    try {
+      const response = await questionsAPI.dismissUserReport(currentQuestion.report_id);
+      if (response.success) {
+        setDismissReportItemMessage('Report dismissed from your list.');
+        // Optional: Remove question from view or auto-advance
+        // This might be complex if it's the last question. For now, user can click next.
+        // Consider:
+        // setQuestions(prevQs => prevQs.filter(q => q.id !== currentQuestion.id));
+        // if (questions.length -1 === 0) { handleBackToHome(); }
+        // else if (currentQuestionIndex >= questions.length - 2) { handleNextQuestion(); }
+      } else {
+        setDismissReportItemMessage(response.message || 'Could not dismiss report.');
+      }
+    } catch (error) {
+      setDismissReportItemMessage(error.message || 'Error dismissing report.');
+    } finally {
+      setDismissingReportItem(false);
+      setTimeout(() => setDismissReportItemMessage(''), 3000); // Clear message after 3s
+    }
+  };
+
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" text={`Loading ${quizInfo.displayName} questions...`} /></div>;
   if (error && !questions.length) return (
@@ -449,46 +490,63 @@ const QuizPage = () => {
             })}
             </div>
 
-            {/* Action Buttons Area (Report, Add/Remove Weakness) */}
+            {/* Action Buttons Area (Report, Add/Remove Weakness, Dismiss Report) */}
             {currentQuestion && (
               <div className="mt-6 mb-4 text-center sm:text-right space-x-2">
-                {/* Report Button */}
-                <button
-                  onClick={handleOpenReportModal}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
-                  title="Report this question"
-                  disabled={submitting || reportSubmitting || weaknessSubmitting}
-                >
-                  ⚠️ Report Question
-                </button>
+                {/* Report Button - Not shown if in Reported Questions course */}
+                {!isReportedQuestionsCourse && (
+                  <button
+                    onClick={handleOpenReportModal}
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
+                    title="Report this question"
+                    disabled={submitting || reportSubmitting || weaknessSubmitting || dismissingReportItem}
+                  >
+                    ⚠️ Report Question
+                  </button>
+                )}
 
-                {/* Add to Weakness Training Button */}
-                {!isWeaknessTrainingCourse && (
+                {/* Add to Weakness Training Button - Not shown if in Weakness or Reported Questions course */}
+                {!isWeaknessTrainingCourse && !isReportedQuestionsCourse && (
                   <button
                     onClick={handleAddWeaknessItem}
                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
                     title="Add this question to your Weakness Training list"
-                    disabled={weaknessSubmitting || submitting || reportSubmitting}
+                    disabled={weaknessSubmitting || submitting || reportSubmitting || dismissingReportItem}
                   >
                     ➕ Add to Weakness Training
                   </button>
                 )}
 
-                {/* Remove from Weakness Training Button */}
+                {/* Remove from Weakness Training Button - Only in Weakness Training course */}
                 {isWeaknessTrainingCourse && (
                   <button
                     onClick={handleRemoveWeaknessItem}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors disabled:opacity-50"
                     title="Remove this question from your Weakness Training list"
-                    disabled={weaknessSubmitting || submitting || reportSubmitting}
+                    disabled={weaknessSubmitting || submitting || reportSubmitting || dismissingReportItem}
                   >
                     ➖ Remove from Weakness Training
+                  </button>
+                )}
+
+                {/* Dismiss from Reported List Button - Only in Reported Questions course */}
+                {isReportedQuestionsCourse && currentQuestion.report_id && (
+                  <button
+                    onClick={handleDismissReportItem}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors disabled:opacity-50"
+                    title="Dismiss this report from your list"
+                    disabled={dismissingReportItem || submitting || reportSubmitting || weaknessSubmitting}
+                  >
+                    ➖ Dismiss from List
                   </button>
                 )}
               </div>
             )}
             {weaknessStatusMessage && (
                 <div className="my-2 text-sm text-center text-blue-700">{weaknessStatusMessage}</div>
+            )}
+            {dismissReportItemMessage && (
+                <div className="my-2 text-sm text-center text-gray-700">{dismissReportItemMessage}</div>
             )}
 
             {showResult && (
