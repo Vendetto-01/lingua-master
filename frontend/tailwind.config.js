@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', // Dark mode etkinleştirildi
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -45,7 +46,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Sour Gummy', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Quicksand', 'Inter', 'system-ui', 'sans-serif'],
       },
       screens: {
         'xs': '475px',

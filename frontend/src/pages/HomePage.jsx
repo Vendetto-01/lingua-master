@@ -162,7 +162,7 @@ const HomePage = () => {
     id: 'general',
     title: 'Mixed Challenge',
     description: 'Test your knowledge with questions from all difficulty levels - the perfect way to challenge yourself!',
-    icon: '🌈',
+    icon: '🎯', // Emoji değiştirildi
     buttonText: 'Start Mixed Quiz',
     buttonColor: 'btn-primary',
     isActive: totalQuestionsInSystem > 0,
@@ -238,7 +238,7 @@ const HomePage = () => {
       description: 'Review questions you have previously reported and see their status or re-evaluate them.',
       icon: '🚩',
       buttonText: reportedQuestionsCourseActive ? 'Review Reported' : 'No Reported Yet',
-      buttonColor: reportedQuestionsCourseActive ? 'btn-info' : 'btn-disabled',
+      buttonColor: reportedQuestionsCourseActive ? 'btn-danger' : 'btn-disabled', // btn-info -> btn-danger olarak değiştirildi
       isActive: reportedQuestionsCourseActive,
       difficulty: 'Review',
       questionsCount: reportedQuestionsCourseActive ? 'Your Reports' : 'Empty',

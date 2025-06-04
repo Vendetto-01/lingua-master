@@ -1,6 +1,7 @@
-import React, { Suspense } from 'react' // Suspense eklendi
+import React, { Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'; // ThemeProvider import edildi
 import Layout from './components/Layout'
 // Sayfa importları React.lazy ile değiştirilecek
 // import AuthPage from './pages/AuthPage'
@@ -112,11 +113,14 @@ const AppRouter = () => {
 // Main App Component
 const App = () => {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
-        <AppRouter />
-      </div>
-    </AuthProvider>
+    <ThemeProvider> {/* ThemeProvider ile sarıldı */}
+      <AuthProvider>
+        {/* bg-gray-50 sınıfı burada kalabilir veya index.css'e taşınabilir dark mode için */}
+        <div className="min-h-screen bg-gray-50">
+          <AppRouter />
+        </div>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 
