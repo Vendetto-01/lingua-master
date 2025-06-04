@@ -45,7 +45,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Sour Gummy', 'Inter', 'system-ui', 'sans-serif'],
       },
       screens: {
         'xs': '475px',

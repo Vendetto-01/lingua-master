@@ -492,7 +492,7 @@ const QuizPage = () => {
             {currentQuestion.question_text && currentQuestion.word && (
             <div className="mb-8">
               <h2
-                className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed"
+                className="text-xl sm:text-2xl text-gray-900 leading-relaxed" /* font-semibold removed */
                 dangerouslySetInnerHTML={{ __html: highlightWord(currentQuestion.question_text, currentQuestion.word) }}
               />
             </div>
@@ -502,7 +502,7 @@ const QuizPage = () => {
              <div className="mb-6"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100"><div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">Context</div><p className="text-gray-700 leading-relaxed italic">"{currentQuestion.paragraph}"</p></div></div>
             )}
             {currentQuestion.question_text && !currentQuestion.word && (
-              <div className="mb-8"><h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed">{currentQuestion.question_text}</h2></div>
+              <div className="mb-8"><h2 className="text-xl sm:text-2xl text-gray-900 leading-relaxed">{currentQuestion.question_text}</h2></div> /* font-semibold removed */
             )}
 
             <div className="space-y-3 mb-8">
