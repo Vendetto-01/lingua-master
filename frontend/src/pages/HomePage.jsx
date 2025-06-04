@@ -267,6 +267,10 @@ const HomePage = () => {
     };
   });
 
+  const personalCourseIds = ['learning-history', 'weakness-training', 'reported-questions'];
+  const personalCourses = allCourses.filter(course => personalCourseIds.includes(course.id));
+  const generalCourses = allCourses.filter(course => !personalCourseIds.includes(course.id));
+
   // Loading state
   if (loading) {
     return (
@@ -388,17 +392,50 @@ const HomePage = () => {
             Your journey to English mastery starts with a single question!
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allCourses.map((course) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              onStartCourse={handleStartCourse}
-              className="h-full"
-            />
-          ))}
-        </div>
+
+        {/* Personal Courses Section */}
+        {personalCourses.length > 0 && (
+          <div className="mb-12">
+            <h3 className="text-2xl font-semibold text-gray-800 mb-3 pl-2 border-l-4 border-sky-500">
+              Kişisel Gelişim Alanınız 🚀
+            </h3>
+            <p className="text-gray-600 mb-6 ml-3">
+              Öğrenme geçmişinizi takip edin ve zayıf yönlerinizi güçlendirin.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {personalCourses.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onStartCourse={handleStartCourse}
+                  className="h-full" // Ensure cards stretch if needed
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* General Courses Section */}
+        {generalCourses.length > 0 && (
+          <div>
+            <h3 className="text-2xl font-semibold text-gray-800 mb-3 pl-2 border-l-4 border-green-500">
+              Genel Pratik Alanları 🌍
+            </h3>
+            <p className="text-gray-600 mb-6 ml-3">
+              Farklı zorluk seviyelerinde pratik yaparak kelime dağarcığınızı genişletin.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {generalCourses.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onStartCourse={handleStartCourse}
+                  className="h-full" // Ensure cards stretch if needed
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
