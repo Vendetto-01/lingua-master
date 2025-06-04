@@ -206,7 +206,7 @@ const HomePage = () => {
       description: 'Review your past questions and track your learning journey over time.',
       icon: '📈',
       buttonText: 'View History',
-      buttonColor: 'btn-secondary',
+      buttonColor: 'bg-sky-500 hover:bg-sky-600 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200',
       isActive: true,
       difficulty: 'Review',
       questionsCount: 'Your History',
@@ -222,7 +222,7 @@ const HomePage = () => {
       description: 'Focus on questions you struggled with or manually added to turn weaknesses into strengths.',
       icon: '💪', // Updated icon
       buttonText: weaknessCourseActive ? 'Start Training' : 'No Items Yet',
-      buttonColor: weaknessCourseActive ? 'btn-warning' : 'btn-disabled', // Use a specific color for active, and a disabled style
+      buttonColor: weaknessCourseActive ? 'bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200' : 'btn-disabled', // Use a specific color for active, and a disabled style
       isActive: weaknessCourseActive,
       difficulty: 'Personalized', // Updated difficulty
       questionsCount: weaknessCourseActive ? 'Your Focus List' : 'Empty', // Dynamic count/text

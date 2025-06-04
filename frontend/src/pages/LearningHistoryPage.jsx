@@ -1,289 +1,169 @@
-// frontend/src/services/api.js
-import axios from 'axios';
-import { getAuthToken } from '../config/supabase';
+import React, { useState, useEffect, useCallback } from 'react';
+import { historyAPI } from '../services/api'; // Ensure this path is correct
+import QuestionCard from '../components/QuestionCard'; // Assuming QuestionCard can display history items
+import LoadingSpinner from '../components/LoadingSpinner'; // Assuming you have a LoadingSpinner component
+import { Link } from 'react-router-dom'; // For a back button or other navigation
 
-// Create axios instance with base configuration
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const LearningHistoryPage = () => {
+  const [historyItems, setHistoryItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    pageSize: 10,
+  });
 
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  async (config) => {
+  const fetchHistory = useCallback(async (page = 1) => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const token = await getAuthToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+      const response = await historyAPI.getLearningHistory(page, pagination.pageSize);
+      if (response.success && response.data) {
+        // Assuming response.data is an array of question-like objects
+        // The backend historyController.js formats items with:
+        // history_id, question_id, word, part_of_speech, definition, difficulty_level,
+        // example_sentence, question_text, selected_option_letter, selected_option_text,
+        // is_correct, correct_option_letter, correct_option_text, explanation, answered_at
+        // We need to adapt these to what QuestionCard expects, or adapt QuestionCard.
+        // For now, let's assume QuestionCard can handle these or we'll map them.
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      console.error('Unauthorized access - redirecting to login');
-      // You can dispatch a logout action here if using context/redux
-      // Example: window.location.href = '/auth'; // veya daha iyi bir yönlendirme
-    }
-
-    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'An unexpected error occurred';
-    return Promise.reject({
-      message: errorMessage,
-      status: error.response?.status,
-      originalError: error
-    });
-  }
-);
-
-// API service functions
-export const questionsAPI = {
-  getRandomQuestions: async (limit = 10, difficulty = null) => {
-    try {
-      const params = { limit };
-      if (difficulty && difficulty !== 'mixed') {
-        params.difficulty = difficulty;
-      }
-
-      const response = await api.get('/questions/random', { params });
-
-      if (response.data.success && response.data.questions) {
-        response.data.questions.forEach((question, index) => {
-          if (!question.options || !Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || !opt.text || !opt.originalLetter)) {
-            console.warn(`Question ${index + 1} (ID: ${question.id}) has invalid options format. Expected array of {text, originalLetter}. Received:`, question.options);
-          }
-          if (!question.correct_answer_letter_from_db) {
-            console.warn(`Question ${index + 1} (ID: ${question.id}) missing correct_answer_letter_from_db.`);
-          }
-          if (!question.explanation && question.explanation !== '') {
-             console.info(`Question ${question.id} has no explanation`);
-          }
-        });
-      }
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  getDifficultyLevels: async () => {
-    try {
-      const response = await api.get('/questions/difficulties');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  checkAnswer: async (questionId, selectedOriginalLetter) => {
-    try {
-      const response = await api.post('/questions/check', {
-        questionId,
-        selectedOriginalLetter
-      });
-
-      const data = response.data;
-      if (data.success) {
-        const requiredFields = ['isCorrect', 'correctOriginalLetter', 'correctAnswerText'];
-        const missingFields = requiredFields.filter(field => data[field] === undefined);
-
-        if (missingFields.length > 0) {
-          console.error('Missing required fields in checkAnswer response:', missingFields);
+        const formattedQuestions = response.data.map(item => ({
+          id: item.question_id, // QuestionCard likely expects 'id'
+          question_text: item.question_text,
+          // Options might need to be reconstructed if QuestionCard expects a specific format
+          // For history, we might display the question, user's answer, and correct answer directly
+          // rather than interactive options.
+          options: [ // This is a placeholder, QuestionCard might need actual options
+            { text: item.selected_option_text || 'N/A', originalLetter: item.selected_option_letter || '' },
+            // Add other options if available/needed, or simplify QuestionCard for history
+          ],
+          correct_answer_letter_from_db: item.correct_option_letter, // Or however QuestionCard gets the correct answer
+          explanation: item.explanation,
+          difficulty_level: item.difficulty_level,
+          // Add any other fields QuestionCard might need
+          // Fields specific to history:
+          user_selected_letter: item.selected_option_letter,
+          user_selected_text: item.selected_option_text,
+          user_was_correct: item.is_correct,
+          answered_at: item.answered_at,
+          correct_answer_text: item.correct_option_text, // To display the correct answer text
+        }));
+        setHistoryItems(formattedQuestions);
+        if (response.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            currentPage: response.pagination.currentPage,
+            totalPages: response.pagination.totalPages,
+            totalItems: response.pagination.totalItems,
+          }));
         }
-        if (data.explanation === undefined) {
-          console.info('Explanation not present in checkAnswer response for question:', questionId);
-        }
+      } else {
+        setError(response.message || 'Failed to load learning history.');
+        setHistoryItems([]);
       }
-      return response.data;
-    } catch (error) {
-      throw error;
+    } catch (err) {
+      setError(err.message || 'An error occurred while fetching learning history.');
+      setHistoryItems([]);
+      console.error("Fetch history error:", err);
+    } finally {
+      setIsLoading(false);
     }
-  },
+  }, [pagination.pageSize]);
 
-  getPreviousQuestions: async () => { // Bu fonksiyon Learning History için güncellenecek veya kaldırılacak
-    try {
-      // Bu endpoint artık /api/history/learning ile değiştirilecek.
-      // Şimdilik burada bırakıyorum ama LearningHistoryPage.jsx'te yeni API kullanılacak.
-      console.warn("getPreviousQuestions is deprecated. Use historyAPI.getLearningHistory instead.");
-      const response = await api.get('/questions/previous');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
+  useEffect(() => {
+    fetchHistory(pagination.currentPage);
+  }, [fetchHistory, pagination.currentPage]);
 
-  getIncorrectQuestions: async () => { // Bu fonksiyon Weakness Training için güncellenecek
-    try {
-      const response = await api.get('/questions/incorrect'); // Backend'de bu endpoint'i henüz tam olarak geliştirmedik
-      return response.data;
-    } catch (error) {
-      throw error;
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, currentPage: newPage }));
     }
-  },
-};
+  };
 
-// User Stats API fonksiyonları
-export const userStatsAPI = {
-  recordQuizSession: async (sessionDetails) => {
-    try {
-      const response = await api.post('/users/session', sessionDetails);
-      return response.data;
-    } catch (error) {
-      console.error('Error recording quiz session:', error.message, error.originalError?.response?.data);
-      throw error;
-    }
-  },
-  getUserDashboardStats: async () => {
-    try {
-      const response = await api.get('/users/dashboard-stats');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error.message, error.originalError?.response?.data);
-      throw error;
-    }
-  },
-  getUserCourseStats: async () => {
-    try {
-      const response = await api.get('/users/course-stats');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching course stats:', error.message, error.originalError?.response?.data);
-      throw error;
-    }
+  if (isLoading) {
+    return <LoadingSpinner />;
   }
-};
 
-// YENİ: Learning History API fonksiyonları
-export const historyAPI = {
-  getLearningHistory: async (page = 1, limit = 10, sortBy = 'date_desc') => {
-    try {
-      const params = { page, limit, sortBy };
-      const response = await api.get('/history/learning', { params }); // Yeni backend endpoint'i
-      return response.data; // Backend'den gelen { success, data, pagination } objesini döndürür
-    } catch (error) {
-      console.error('Error fetching learning history:', error.message, error.originalError?.response?.data);
-      throw error;
-    }
+  if (error) {
+    return (
+      <div className="container mx-auto p-4 text-center">
+        <h1 className="text-2xl font-bold mb-4 text-red-500">Error</h1>
+        <p>{error}</p>
+        <Link to="/" className="mt-4 inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          Go to Homepage
+        </Link>
+      </div>
+    );
   }
-};
 
-
-// Difficulty level utilities
-export const difficultyUtils = {
-  getDisplayName: (difficulty) => {
-    const names = {
-      'beginner': 'Beginner',
-      'intermediate': 'Intermediate',
-      'advanced': 'Advanced',
-      'mixed': 'Mixed Levels'
-    };
-    return names[difficulty] || difficulty;
-  },
-  getIcon: (difficulty) => {
-    const icons = {
-      'beginner': '験',
-      'intermediate': '識',
-      'advanced': '櫨',
-      'mixed': '決'
-    };
-    return icons[difficulty] || '答';
-  },
-  getColorClass: (difficulty) => {
-    const colors = {
-      'beginner': 'text-green-600 bg-green-100',
-      'intermediate': 'text-blue-600 bg-blue-100',
-      'advanced': 'text-red-600 bg-red-100',
-      'mixed': 'text-purple-600 bg-purple-100'
-    };
-    return colors[difficulty] || 'text-gray-600 bg-gray-100';
-  },
-  getDescription: (difficulty) => {
-    const descriptions = {
-      'beginner': 'Perfect for learning basic vocabulary',
-      'intermediate': 'Good for building stronger language skills',
-      'advanced': 'Challenge yourself with complex vocabulary',
-      'mixed': 'Questions from all difficulty levels'
-    };
-    return descriptions[difficulty] || 'Vocabulary questions';
+  if (historyItems.length === 0) {
+    return (
+      <div className="container mx-auto p-4 text-center">
+        <h1 className="text-2xl font-bold mb-4">Learning History</h1>
+        <p>You haven't answered any questions yet. Start a quiz to build your history!</p>
+        <Link to="/" className="mt-4 inline-block bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+          Explore Quizzes
+        </Link>
+      </div>
+    );
   }
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6 text-center text-gray-700">My Learning History</h1>
+      <div className="space-y-6">
+        {historyItems.map((item, index) => (
+          // Assuming QuestionCard is adapted or flexible enough.
+          // You might need a specific "HistoryItemCard" component.
+          <QuestionCard
+            key={item.id + '-' + index} // Use a more unique key if possible, e.g., item.history_id
+            question={item}
+            questionNumber={index + 1 + (pagination.currentPage - 1) * pagination.pageSize}
+            isHistoryView={true} // Add a prop to tell QuestionCard it's for history
+            // Pass down history-specific details if QuestionCard is adapted:
+            userAnswer={{
+              selectedLetter: item.user_selected_letter,
+              selectedText: item.user_selected_text,
+              isCorrect: item.user_was_correct,
+              answeredAt: item.answered_at,
+              correctText: item.correct_answer_text,
+              correctLetter: item.correct_answer_letter_from_db
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div className="mt-8 flex justify-center items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(pagination.currentPage - 1)}
+            disabled={pagination.currentPage === 1}
+            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span>
+            Page {pagination.currentPage} of {pagination.totalPages}
+          </span>
+          <button
+            onClick={() => handlePageChange(pagination.currentPage + 1)}
+            disabled={pagination.currentPage === pagination.totalPages}
+            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
+       <div className="mt-8 text-center">
+        <Link to="/" className="text-blue-500 hover:text-blue-700 font-semibold">
+          &larr; Back to Home
+        </Link>
+      </div>
+    </div>
+  );
 };
 
-// Course type utilities
-export const courseUtils = {
-  parseCourseType: (courseType) => {
-    if (courseType.startsWith('difficulty-')) {
-      return {
-        type: 'difficulty',
-        difficulty: courseType.replace('difficulty-', ''),
-        isGeneral: false
-      };
-    }
-    // 'weakness-training' gibi özel türleri de buraya ekleyebiliriz ileride.
-    return {
-      type: 'general', // 'general' veya bilinmeyenleri 'mixed' kabul edelim
-      difficulty: 'mixed',
-      isGeneral: true
-    };
-  },
-  generateCourseType: (difficulty) => {
-    if (difficulty === 'mixed' || difficulty === 'Mixed Levels') { // 'Mixed Levels' kontrolü eklendi
-      return 'general';
-    }
-    return `difficulty-${difficulty}`;
-  }
-};
-
-// Question utilities
-export const questionUtils = {
-  validateQuestion: (question) => {
-    const requiredFields = [
-      'id', 'question_text', 'options', 'correct_answer_letter_from_db'
-    ];
-    if (!requiredFields.every(field => question[field] !== undefined)) return false;
-    if (!Array.isArray(question.options) || question.options.some(opt => typeof opt !== 'object' || typeof opt.text !== 'string' || typeof opt.originalLetter !== 'string')) return false;
-    return true;
-  },
-  getCorrectAnswerTextFromProcessedQuestion: (question) => {
-    if (!question || !question.options || !question.correct_answer_letter_from_db) {
-      return null;
-    }
-    const correctOption = question.options.find(opt => opt.originalLetter === question.correct_answer_letter_from_db);
-    return correctOption ? correctOption.text : null;
-  },
-  hasExplanation: (question) => {
-    return question.explanation && question.explanation.trim().length > 0;
-  },
-  formatQuestion: (question) => {
-    return {
-      ...question,
-      hasContext: !!question.paragraph,
-      hasExplanation: questionUtils.hasExplanation(question),
-    };
-  }
-};
-
-// Health check function
-export const healthCheck = async () => {
-  try {
-    // baseURL'i doğrudan kullanmak yerine, axios'un kendi instance'ı dışındaki bir çağrı için tam URL oluşturuyoruz.
-    const healthCheckUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '/health');
-    const response = await axios.get(healthCheckUrl);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export default api;
+export default LearningHistoryPage;
