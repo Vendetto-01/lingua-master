@@ -1,19 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react' // useEffect ve useRef eklendi
-import { useNavigate, useLocation, Link } from 'react-router-dom' // Link eklendi
+import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'; // useTheme import edildi
 
-const UserIcon = () => ( // Basit bir kullanıcı ikonu
+const UserIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
     <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
   </svg>
 );
 
+const ThemeToggleIcon = ({ theme }) => {
+  if (theme === 'dark') {
+    return <span title="Gündüz Moduna Geç" role="img" aria-label="sun">☀️</span>; // Sun emoji for switching to light
+  }
+  return <span title="Gece Moduna Geç" role="img" aria-label="moon">🌙</span>; // Moon emoji for switching to dark
+};
+
 const Layout = ({ children }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, signOut } = useAuth()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false) // isMenuOpen -> isMobileMenuOpen olarak yeniden adlandırıldı
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false) // Yeni state masaüstü kullanıcı menüsü için
+  const { theme, toggleTheme } = useTheme(); // theme ve toggleTheme context'ten alındı
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null); // Ref for desktop user menu
   const mobileMenuRef = useRef(null); // Ref for mobile menu button + content (isteğe bağlı, şimdilik sadece userMenu için)
 
@@ -62,14 +71,25 @@ const Layout = ({ children }) => {
               </div>
             </Link>
 
-            {/* Desktop User Menu */}
-            <div className="hidden md:flex items-center space-x-4 relative" ref={userMenuRef}>
+            {/* Desktop User Menu & Theme Toggle */}
+            <div className="hidden md:flex items-center space-x-3 relative"> {/* space-x-3 yapıldı */}
+              {/* Theme Toggle Button - Desktop */}
               <button
-                onClick={toggleUserMenu}
-                className="flex items-center space-x-2 text-sm text-gray-600 hover:text-primary-600 focus:outline-none dark:text-gray-300 dark:hover:text-primary-400"
+                onClick={toggleTheme}
+                className="p-2 rounded-full text-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 focus:outline-none"
+                aria-label="Toggle theme"
               >
-                <UserIcon />
-                <span>{userName}</span>
+                <ThemeToggleIcon theme={theme} />
+              </button>
+
+              {/* User Menu Button */}
+              <div ref={userMenuRef}> {/* Ref buraya taşındı */}
+                <button
+                  onClick={toggleUserMenu}
+                  className="flex items-center space-x-2 text-sm text-gray-600 hover:text-primary-600 focus:outline-none dark:text-gray-300 dark:hover:text-primary-400"
+                >
+                  <UserIcon />
+                  <span>{userName}</span>
                 <svg className={`w-4 h-4 transition-transform duration-200 ${isUserMenuOpen ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
               </button>
               {isUserMenuOpen && (
@@ -139,6 +159,15 @@ const Layout = ({ children }) => {
                 >
                   Profilim
                 </Link>
+                {/* Mobile Theme Toggle Button */}
+                <button
+                  onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-200 dark:hover:text-white dark:hover:bg-slate-700"
+                  aria-label="Toggle theme"
+                >
+                  <span>Tema Değiştir</span>
+                  <ThemeToggleIcon theme={theme} />
+                </button>
                 <button
                   onClick={() => { handleSignOut(); setIsMobileMenuOpen(false); }}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-200 dark:hover:text-white dark:hover:bg-slate-700"
