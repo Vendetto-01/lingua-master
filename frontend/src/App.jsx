@@ -12,6 +12,7 @@ import LoadingSpinner from './components/LoadingSpinner'
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const HomePage = React.lazy(() => import('./pages/HomePage'));
 const QuizPage = React.lazy(() => import('./pages/QuizPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage')); // ProfilePage eklendi
 // Eğer LearningHistoryPage bir route ise, o da buraya eklenebilir:
 // const LearningHistoryPage = React.lazy(() => import('./pages/LearningHistoryPage'));
 
@@ -75,6 +76,17 @@ const AppRouter = () => {
               </ProtectedRoute>
             }
           />
+  
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfilePage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           
           {/* Eğer LearningHistoryPage bir route ise, buraya eklenebilir:
           <Route
@@ -88,7 +100,7 @@ const AppRouter = () => {
             }
           />
           */}
-
+  
           {/* Catch all route - redirect to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
