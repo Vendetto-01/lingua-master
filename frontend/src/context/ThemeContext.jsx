@@ -15,8 +15,8 @@ export const ThemeProvider = ({ children }) => {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
-    // 3. Varsayılan olarak 'light'
-    return 'light';
+    // 3. Varsayılan olarak 'dark' (önce 'light' idi)
+    return 'dark';
   });
 
   useEffect(() => {
