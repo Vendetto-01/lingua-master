@@ -5,6 +5,22 @@ import { questionsAPI, userStatsAPI, difficultyUtils, courseUtils, questionUtils
 import LoadingSpinner from '../components/LoadingSpinner';
 // import { FlagIcon } from '@heroicons/react/24/outline'; // İkon istenirse eklenebilir
 
+// Helper function to escape special characters for regex
+function escapeRegExp(string) {
+  if (typeof string !== 'string') return '';
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Helper function to highlight a word in a text
+function highlightWord(text, wordToHighlight) {
+  if (typeof text !== 'string' || typeof wordToHighlight !== 'string' || !wordToHighlight.trim()) {
+    return text;
+  }
+  const escapedWord = escapeRegExp(wordToHighlight);
+  const regex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
+  return text.replace(regex, '<strong><u>$1</u></strong>');
+}
+
 const QuizPage = () => {
   const { courseType } = useParams();
   const navigate = useNavigate();
@@ -35,6 +51,8 @@ const QuizPage = () => {
   // Reported Questions state'leri
   const [dismissingReportItem, setDismissingReportItem] = useState(false);
   const [dismissReportItemMessage, setDismissReportItemMessage] = useState('');
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef(null);
 
 
   const [answerDetails, setAnswerDetails] = useState({
@@ -59,6 +77,18 @@ const QuizPage = () => {
     loadQuestions();
     quizStartTimeRef.current = Date.now();
     answeredQuestionsDetailsRef.current = [];
+
+    // Click outside handler for actions menu
+    const handleClickOutside = (event) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
+        setIsActionsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [courseType]);
 
   const isWeaknessTrainingCourse = courseType === 'weakness-training';
@@ -448,10 +478,32 @@ const QuizPage = () => {
                 </span>
             </div>
             )}
-            {currentQuestion.paragraph && (
-            <div className="mb-6"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100"><div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">Context</div><p className="text-gray-700 leading-relaxed italic">"{currentQuestion.paragraph}"</p></div></div>
+            {currentQuestion.paragraph && currentQuestion.word && (
+            <div className="mb-6">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">Context</div>
+                <p
+                  className="text-gray-700 leading-relaxed italic"
+                  dangerouslySetInnerHTML={{ __html: `"${highlightWord(currentQuestion.paragraph, currentQuestion.word)}"` }}
+                />
+              </div>
+            </div>
             )}
-            <div className="mb-8"><h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed">{currentQuestion.question_text}</h2></div>
+            {currentQuestion.question_text && currentQuestion.word && (
+            <div className="mb-8">
+              <h2
+                className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: highlightWord(currentQuestion.question_text, currentQuestion.word) }}
+              />
+            </div>
+            )}
+            {/* Fallback if word is not available for highlighting but text is */}
+            {currentQuestion.paragraph && !currentQuestion.word && (
+             <div className="mb-6"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100"><div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">Context</div><p className="text-gray-700 leading-relaxed italic">"{currentQuestion.paragraph}"</p></div></div>
+            )}
+            {currentQuestion.question_text && !currentQuestion.word && (
+              <div className="mb-8"><h2 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-relaxed">{currentQuestion.question_text}</h2></div>
+            )}
 
             <div className="space-y-3 mb-8">
             {currentQuestion.options.map((option, index) => {
@@ -490,55 +542,66 @@ const QuizPage = () => {
             })}
             </div>
 
-            {/* Action Buttons Area (Report, Add/Remove Weakness, Dismiss Report) */}
+            {/* Action Buttons Area - New Actions Menu */}
             {currentQuestion && (
-              <div className="mt-6 mb-4 text-center sm:text-right space-x-2">
-                {/* Report Button - Not shown if in Reported Questions course */}
-                {!isReportedQuestionsCourse && (
-                  <button
-                    onClick={handleOpenReportModal}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
-                    title="Report this question"
-                    disabled={submitting || reportSubmitting || weaknessSubmitting || dismissingReportItem}
-                  >
-                    ⚠️ Report Question
-                  </button>
-                )}
+              <div className="relative mt-6 mb-4 text-center sm:text-right" ref={actionsMenuRef}>
+                <button
+                  onClick={() => setIsActionsMenuOpen(prev => !prev)}
+                  className="inline-flex items-center justify-center p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                  title="More actions"
+                  disabled={submitting || reportSubmitting || weaknessSubmitting || dismissingReportItem}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                  <span className="sr-only">Open actions menu</span>
+                </button>
 
-                {/* Add to Weakness Training Button - Not shown if in Weakness or Reported Questions course */}
-                {!isWeaknessTrainingCourse && !isReportedQuestionsCourse && (
-                  <button
-                    onClick={handleAddWeaknessItem}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
-                    title="Add this question to your Weakness Training list"
-                    disabled={weaknessSubmitting || submitting || reportSubmitting || dismissingReportItem}
-                  >
-                    ➕ Add to Weakness Training
-                  </button>
-                )}
-
-                {/* Remove from Weakness Training Button - Only in Weakness Training course */}
-                {isWeaknessTrainingCourse && (
-                  <button
-                    onClick={handleRemoveWeaknessItem}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors disabled:opacity-50"
-                    title="Remove this question from your Weakness Training list"
-                    disabled={weaknessSubmitting || submitting || reportSubmitting || dismissingReportItem}
-                  >
-                    ➖ Remove from Weakness Training
-                  </button>
-                )}
-
-                {/* Dismiss from Reported List Button - Only in Reported Questions course */}
-                {isReportedQuestionsCourse && currentQuestion.report_id && (
-                  <button
-                    onClick={handleDismissReportItem}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors disabled:opacity-50"
-                    title="Dismiss this report from your list"
-                    disabled={dismissingReportItem || submitting || reportSubmitting || weaknessSubmitting}
-                  >
-                    ➖ Dismiss from List
-                  </button>
+                {isActionsMenuOpen && (
+                  <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                      {!isReportedQuestionsCourse && (
+                        <button
+                          onClick={() => { handleOpenReportModal(); setIsActionsMenuOpen(false); }}
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          role="menuitem"
+                          disabled={reportSubmitting}
+                        >
+                          ⚠️ Report Question
+                        </button>
+                      )}
+                      {!isWeaknessTrainingCourse && !isReportedQuestionsCourse && (
+                        <button
+                          onClick={() => { handleAddWeaknessItem(); setIsActionsMenuOpen(false); }}
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          role="menuitem"
+                          disabled={weaknessSubmitting}
+                        >
+                          ➕ Add to Weakness Training
+                        </button>
+                      )}
+                      {isWeaknessTrainingCourse && (
+                        <button
+                          onClick={() => { handleRemoveWeaknessItem(); setIsActionsMenuOpen(false); }}
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          role="menuitem"
+                          disabled={weaknessSubmitting}
+                        >
+                          ➖ Remove from Weakness Training
+                        </button>
+                      )}
+                      {isReportedQuestionsCourse && currentQuestion.report_id && (
+                        <button
+                          onClick={() => { handleDismissReportItem(); setIsActionsMenuOpen(false); }}
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          role="menuitem"
+                          disabled={dismissingReportItem}
+                        >
+                          ➖ Dismiss from List
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
