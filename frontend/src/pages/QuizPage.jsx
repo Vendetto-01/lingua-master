@@ -402,13 +402,13 @@ const QuizPage = () => {
   };
 
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" text={`Loading ${quizInfo.displayName} questions...`} /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-900"><LoadingSpinner size="large" text={`Loading ${quizInfo.displayName} questions...`} /></div>;
   if (error && !questions.length) return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 dark:bg-slate-900">
+      <div className="text-center max-w-md bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl">
         <div className="text-6xl mb-4">😔</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Oops! Something went wrong</h2>
-        <p className="text-gray-600 mb-6">{error}</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 dark:text-gray-100">Oops! Something went wrong</h2>
+        <p className="text-gray-600 mb-6 dark:text-gray-300">{error}</p>
         <div className="space-y-3">
           <button onClick={loadQuestions} className="btn-primary w-full">Try Again</button>
           <button onClick={handleBackToHome} className="btn-secondary w-full">Back to Home</button>
@@ -417,17 +417,17 @@ const QuizPage = () => {
     </div>
   );
   if (!questions.length && !loading) return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 dark:bg-slate-900">
+      <div className="text-center max-w-md bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl">
         <div className="text-6xl mb-4">📚</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">No Questions Available</h2>
-        <p className="text-gray-600 mb-6">{error || `There are currently no questions available for the ${quizInfo.displayName} level.`}</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 dark:text-gray-100">No Questions Available</h2>
+        <p className="text-gray-600 mb-6 dark:text-gray-300">{error || `There are currently no questions available for the ${quizInfo.displayName} level.`}</p>
         <button onClick={handleBackToHome} className="btn-primary">Back to Home</button>
       </div>
     </div>
   );
   if (!currentQuestion && questions.length > 0) {
-    return <div className="min-h-screen flex items-center justify-center"><p>Error: Current question is not available but questions list is populated. Please refresh.</p></div>;
+    return <div className="min-h-screen flex items-center justify-center dark:bg-slate-900"><p className="dark:text-gray-200">Error: Current question is not available but questions list is populated. Please refresh.</p></div>;
   }
 
   const currentAccuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
@@ -440,50 +440,55 @@ const QuizPage = () => {
       {/* Header and Progress */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <button onClick={handleBackToHome} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
+          <button onClick={handleBackToHome} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors dark:text-gray-300 dark:hover:text-white">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back to Home
           </button>
-          <div className="text-sm text-gray-600 flex items-center space-x-2">
+          <div className="text-sm text-gray-600 flex items-center space-x-2 dark:text-gray-300">
             <span>{quizInfo.icon}</span>
             <span>{quizInfo.displayName} Quiz</span>
           </div>
         </div>
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{quizInfo.icon} {quizInfo.displayName} Quiz</h1>
-          <p className="text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2 dark:text-gray-100">{quizInfo.icon} {quizInfo.displayName} Quiz</h1>
+          <p className="text-gray-600 dark:text-gray-300">Question {currentQuestionIndex + 1} of {questions.length}</p>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+        <div className="w-full bg-gray-200 rounded-full h-3 mb-4 dark:bg-slate-700">
           <div className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-300" style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}></div>
         </div>
         <div className="flex justify-center space-x-6 text-sm">
-          <div className="text-center"><div className="font-bold text-gray-900">{score.correct}/{score.total}</div><div className="text-gray-500">Score</div></div>
-          {score.total > 0 && (<div className="text-center"><div className={`font-bold ${getAccuracyColor(currentAccuracy)}`}>{currentAccuracy}%</div><div className="text-gray-500">Accuracy</div></div>)}
-          <div className="text-center"><div className="font-bold text-gray-900">{questions.length - (currentQuestionIndex + 1)}</div><div className="text-gray-500">Remaining</div></div>
+          <div className="text-center"><div className="font-bold text-gray-900 dark:text-gray-100">{score.correct}/{score.total}</div><div className="text-gray-500 dark:text-gray-400">Score</div></div>
+          {score.total > 0 && (<div className="text-center"><div className={`font-bold ${getAccuracyColor(currentAccuracy)} dark:${getAccuracyColor(currentAccuracy).replace('text-','text-dark-')}`}>{currentAccuracy}%</div><div className="text-gray-500 dark:text-gray-400">Accuracy</div></div>)} {/* Note: getAccuracyColor might need dark variants */}
+          <div className="text-center"><div className="font-bold text-gray-900 dark:text-gray-100">{questions.length - (currentQuestionIndex + 1)}</div><div className="text-gray-500 dark:text-gray-400">Remaining</div></div>
         </div>
       </div>
 
       {error && questions.length > 0 && (
-           <div className="mb-4 p-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
+           <div className="mb-4 p-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700 dark:bg-danger-900 dark:bg-opacity-30 dark:border-danger-700 dark:text-danger-300">
                {error}
            </div>
        )}
 
       {currentQuestion && (
-        <div className="card-elevated mb-8">
+        <div className="card-elevated mb-8"> {/* .card-elevated already has dark styles from index.css */}
             {currentQuestion.difficulty && (
             <div className="flex justify-end mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${difficultyUtils.getColorClass(currentQuestion.difficulty)}`}>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    currentQuestion.difficulty === 'beginner' ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' :
+                    currentQuestion.difficulty === 'intermediate' ? 'bg-blue-100 text-blue-700 dark:bg-blue-700 dark:text-blue-100' :
+                    currentQuestion.difficulty === 'advanced' ? 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100' :
+                    'bg-gray-100 text-gray-700 dark:bg-slate-600 dark:text-gray-300' // Fallback for other difficulties
+                }`}>
                 {difficultyUtils.getDisplayName(currentQuestion.difficulty)}
                 </span>
             </div>
             )}
             {currentQuestion.paragraph && currentQuestion.word && (
             <div className="mb-6">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
-                <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">Context</div>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 dark:from-slate-700 dark:to-slate-600 dark:border-slate-500">
+                <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2 dark:text-blue-300">Context</div>
                 <p
-                  className="text-gray-700 leading-relaxed italic"
+                  className="text-gray-700 leading-relaxed italic dark:text-gray-300"
                   dangerouslySetInnerHTML={{ __html: `"${highlightWord(currentQuestion.paragraph, currentQuestion.word)}"` }}
                 />
               </div>
@@ -492,50 +497,51 @@ const QuizPage = () => {
             {currentQuestion.question_text && currentQuestion.word && (
             <div className="mb-8">
               <h2
-                className="text-xl sm:text-2xl text-gray-900 leading-relaxed" /* font-semibold removed */
+                className="text-xl sm:text-2xl text-gray-900 leading-relaxed dark:text-gray-100" /* font-semibold removed */
                 dangerouslySetInnerHTML={{ __html: highlightWord(currentQuestion.question_text, currentQuestion.word) }}
               />
             </div>
             )}
             {/* Fallback if word is not available for highlighting but text is */}
             {currentQuestion.paragraph && !currentQuestion.word && (
-             <div className="mb-6"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100"><div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2">Context</div><p className="text-gray-700 leading-relaxed italic">"{currentQuestion.paragraph}"</p></div></div>
+             <div className="mb-6"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 dark:from-slate-700 dark:to-slate-600 dark:border-slate-500"><div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2 dark:text-blue-300">Context</div><p className="text-gray-700 leading-relaxed italic dark:text-gray-300">"{currentQuestion.paragraph}"</p></div></div>
             )}
             {currentQuestion.question_text && !currentQuestion.word && (
-              <div className="mb-8"><h2 className="text-xl sm:text-2xl text-gray-900 leading-relaxed">{currentQuestion.question_text}</h2></div> /* font-semibold removed */
+              <div className="mb-8"><h2 className="text-xl sm:text-2xl text-gray-900 leading-relaxed dark:text-gray-100">{currentQuestion.question_text}</h2></div> /* font-semibold removed */
             )}
 
             <div className="space-y-3 mb-8">
             {currentQuestion.options.map((option, index) => {
-                let optionClass = 'quiz-option text-left';
+                let optionClass = 'quiz-option text-left'; // .quiz-option has dark styles from index.css
                 let iconClass = 'w-6 h-6 mr-3 flex-shrink-0';
                 let iconLetter = String.fromCharCode(65 + index);
                 let icon = null;
 
+                // Icon styling for dark mode needs to be considered within these conditions
                 if (showResult) {
-                if (index === displayCorrectOptionIndex) {
-                    optionClass += ' quiz-option-correct';
-                    icon = <div className={`${iconClass} bg-success-500 rounded-full flex items-center justify-center`}><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>;
-                } else if (index === selectedAnswerIndex && !isCorrect) {
-                    optionClass += ' quiz-option-incorrect';
-                    icon = <div className={`${iconClass} bg-danger-500 rounded-full flex items-center justify-center`}><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></div>;
+                  if (index === displayCorrectOptionIndex) {
+                      optionClass += ' quiz-option-correct'; // Has dark styles
+                      icon = <div className={`${iconClass} bg-success-500 rounded-full flex items-center justify-center`}><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>;
+                  } else if (index === selectedAnswerIndex && !isCorrect) {
+                      optionClass += ' quiz-option-incorrect'; // Has dark styles
+                      icon = <div className={`${iconClass} bg-danger-500 rounded-full flex items-center justify-center`}><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></div>;
+                  } else {
+                      icon = <div className={`${iconClass} bg-gray-200 dark:bg-slate-600 rounded-full flex items-center justify-center`}><span className="text-gray-600 dark:text-gray-300 text-sm font-medium">{iconLetter}</span></div>;
+                  }
                 } else {
-                    icon = <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center`}><span className="text-gray-600 text-sm font-medium">{iconLetter}</span></div>;
-                }
-                } else {
-                if (selectedAnswerIndex === index) {
-                    optionClass += ' quiz-option-selected';
-                    icon = <div className={`${iconClass} bg-primary-500 rounded-full flex items-center justify-center`}><span className="text-white text-sm font-medium">{iconLetter}</span></div>;
-                } else {
-                    icon = <div className={`${iconClass} bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors`}><span className="text-gray-600 text-sm font-medium">{iconLetter}</span></div>;
-                }
+                  if (selectedAnswerIndex === index) {
+                      optionClass += ' quiz-option-selected'; // Has dark styles
+                      icon = <div className={`${iconClass} bg-primary-500 dark:bg-primary-600 rounded-full flex items-center justify-center`}><span className="text-white text-sm font-medium">{iconLetter}</span></div>;
+                  } else {
+                      icon = <div className={`${iconClass} bg-gray-200 dark:bg-slate-600 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors`}><span className="text-gray-600 dark:text-gray-300 text-sm font-medium">{iconLetter}</span></div>;
+                  }
                 }
 
                 return (
                 <button key={index} onClick={() => handleAnswerSelect(index)} disabled={showResult || submitting} className={optionClass}>
                     <div className="flex items-center">
                     {icon}
-                    <span className="flex-1">{option.text}</span>
+                    <span className="flex-1">{option.text}</span> {/* Text color handled by .quiz-option's dark:text-gray-200 */}
                     </div>
                 </button>
                 );
@@ -547,7 +553,7 @@ const QuizPage = () => {
               <div className="relative mt-6 mb-4 text-center sm:text-right" ref={actionsMenuRef}>
                 <button
                   onClick={() => setIsActionsMenuOpen(prev => !prev)}
-                  className="inline-flex items-center justify-center p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                  className="inline-flex items-center justify-center p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700 dark:focus:ring-offset-slate-800"
                   title="More actions"
                   disabled={submitting || reportSubmitting || weaknessSubmitting || dismissingReportItem}
                 >
@@ -558,12 +564,12 @@ const QuizPage = () => {
                 </button>
 
                 {isActionsMenuOpen && (
-                  <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                  <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 dark:bg-slate-700 dark:ring-white dark:ring-opacity-20">
                     <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                       {!isReportedQuestionsCourse && (
                         <button
                           onClick={() => { handleOpenReportModal(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
                           role="menuitem"
                           disabled={reportSubmitting}
                         >
@@ -573,7 +579,7 @@ const QuizPage = () => {
                       {!isWeaknessTrainingCourse && !isReportedQuestionsCourse && (
                         <button
                           onClick={() => { handleAddWeaknessItem(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
                           role="menuitem"
                           disabled={weaknessSubmitting}
                         >
@@ -583,7 +589,7 @@ const QuizPage = () => {
                       {isWeaknessTrainingCourse && (
                         <button
                           onClick={() => { handleRemoveWeaknessItem(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
                           role="menuitem"
                           disabled={weaknessSubmitting}
                         >
@@ -593,7 +599,7 @@ const QuizPage = () => {
                       {isReportedQuestionsCourse && currentQuestion.report_id && (
                         <button
                           onClick={() => { handleDismissReportItem(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
                           role="menuitem"
                           disabled={dismissingReportItem}
                         >
@@ -606,31 +612,31 @@ const QuizPage = () => {
               </div>
             )}
             {weaknessStatusMessage && (
-                <div className="my-2 text-sm text-center text-blue-700">{weaknessStatusMessage}</div>
+                <div className="my-2 text-sm text-center text-blue-700 dark:text-blue-300">{weaknessStatusMessage}</div>
             )}
             {dismissReportItemMessage && (
-                <div className="my-2 text-sm text-center text-gray-700">{dismissReportItemMessage}</div>
+                <div className="my-2 text-sm text-center text-gray-700 dark:text-gray-300">{dismissReportItemMessage}</div>
             )}
 
             {showResult && (
-            <div className={`mb-6 p-4 rounded-lg animate-fade-in ${isCorrect ? 'bg-success-50 border border-success-200' : 'bg-danger-50 border border-danger-200'}`}>
+            <div className={`mb-6 p-4 rounded-lg animate-fade-in ${isCorrect ? 'bg-success-50 border-success-200 dark:bg-success-900 dark:bg-opacity-30 dark:border-success-700' : 'bg-danger-50 border-danger-200 dark:bg-danger-900 dark:bg-opacity-30 dark:border-danger-700'}`}>
                 <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">
                     {isCorrect ? <div className="w-8 h-8 bg-success-500 rounded-full flex items-center justify-center"><svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>
                             : <div className="w-8 h-8 bg-danger-500 rounded-full flex items-center justify-center"><svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></div>}
                 </div>
                 <div className="flex-1">
-                    <p className={`font-semibold text-lg ${isCorrect ? 'text-success-800' : 'text-danger-800'}`}>{isCorrect ? '🎉 Excellent!' : '❌ Not quite right'}</p>
-                    <p className={`text-sm mt-1 ${isCorrect ? 'text-success-700' : 'text-danger-700'}`}>
+                    <p className={`font-semibold text-lg ${isCorrect ? 'text-success-800 dark:text-success-200' : 'text-danger-800 dark:text-danger-200'}`}>{isCorrect ? '🎉 Excellent!' : '❌ Not quite right'}</p>
+                    <p className={`text-sm mt-1 ${isCorrect ? 'text-success-700 dark:text-success-300' : 'text-danger-700 dark:text-danger-300'}`}>
                     {isCorrect ? 'Great job! You got it right.' : `The correct answer is: ${answerDetails.correctAnswerText}`}
                     </p>
                     {answerDetails.hasExplanation && (
-                    <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200 dark:bg-slate-700 dark:border-slate-600">
                         <div className="flex items-start space-x-2">
-                        <div className="text-blue-500 mt-0.5"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg></div>
+                        <div className="text-blue-500 mt-0.5 dark:text-blue-400"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg></div>
                         <div>
-                            <p className="text-xs font-medium text-blue-600 mb-1">Explanation</p>
-                            <p className="text-sm text-gray-700">{answerDetails.explanation}</p>
+                            <p className="text-xs font-medium text-blue-600 mb-1 dark:text-blue-300">Explanation</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{answerDetails.explanation}</p>
                         </div>
                         </div>
                     </div>
@@ -641,6 +647,7 @@ const QuizPage = () => {
             )}
 
             <div className="flex flex-col sm:flex-row gap-3">
+            {/* .btn-primary already has dark styles from index.css */}
             {!showResult ? (
                 <button onClick={handleSubmitAnswer} disabled={selectedAnswerIndex === null || submitting} className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 {submitting ? (<><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Checking...</span></>)
@@ -653,57 +660,58 @@ const QuizPage = () => {
                 </button>
             )}
             </div>
-            {!showResult && selectedAnswerIndex === null && (<div className="mt-4 text-center"><p className="text-sm text-gray-500">💡 Select an answer and click Submit to continue</p></div>)}
+            {!showResult && selectedAnswerIndex === null && (<div className="mt-4 text-center"><p className="text-sm text-gray-500 dark:text-gray-400">💡 Select an answer and click Submit to continue</p></div>)}
         </div>
       )}
       {/* The extra div that was here (previously line 442) is now removed. */}
       {/* Raporlama Modal'ı */}
       {showReportModal && currentQuestion && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity z-50 flex items-center justify-center p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="bg-white rounded-lg shadow-xl p-5 sm:p-6 w-full max-w-lg transform transition-all">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-black dark:bg-opacity-60 transition-opacity z-50 flex items-center justify-center p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-lg shadow-xl p-5 sm:p-6 w-full max-w-lg transform transition-all dark:bg-slate-800">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
+              <h3 className="text-lg font-semibold leading-6 text-gray-900 dark:text-gray-100" id="modal-title">
                 Report Question
               </h3>
               <button
                 type="button"
                 onClick={handleCloseReportModal}
                 disabled={reportSubmitting}
-                className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
+                className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:text-gray-500 dark:hover:bg-slate-700 dark:hover:text-gray-300"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
                 <span className="sr-only">Close</span>
               </button>
             </div>
 
-            {reportError && <div className="mb-3 p-3 bg-danger-50 border border-danger-200 text-danger-700 rounded-md text-sm">{reportError}</div>}
-            {reportSuccessMessage && <div className="mb-3 p-3 bg-success-50 border border-success-200 text-success-700 rounded-md text-sm">{reportSuccessMessage}</div>}
+            {reportError && <div className="mb-3 p-3 bg-danger-50 border border-danger-200 text-danger-700 rounded-md text-sm dark:bg-danger-900 dark:bg-opacity-30 dark:border-danger-700 dark:text-danger-300">{reportError}</div>}
+            {reportSuccessMessage && <div className="mb-3 p-3 bg-success-50 border border-success-200 text-success-700 rounded-md text-sm dark:bg-success-900 dark:bg-opacity-30 dark:border-success-700 dark:text-success-300">{reportSuccessMessage}</div>}
 
             {!reportSuccessMessage && (
               <form onSubmit={(e) => { e.preventDefault(); handleSubmitReport(); }}>
                 <div className="mb-4">
-                  <p className="text-sm text-gray-700 mb-1"><strong>Question:</strong></p>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border max-h-24 overflow-y-auto"><em>"{currentQuestion.question_text}"</em></p>
+                  <p className="text-sm text-gray-700 mb-1 dark:text-gray-300"><strong>Question:</strong></p>
+                  <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border max-h-24 overflow-y-auto dark:text-gray-400 dark:bg-slate-700 dark:border-slate-600"><em>"{currentQuestion.question_text}"</em></p>
                 </div>
                 
-                <p className="text-sm font-medium text-gray-800 mb-2">Please select a reason for your report:</p>
+                <p className="text-sm font-medium text-gray-800 mb-2 dark:text-gray-200">Please select a reason for your report:</p>
                 <div className="space-y-3 mb-6">
                   {REPORT_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer has-[:checked]:bg-primary-50 has-[:checked]:border-primary-300">
+                    <label key={option.value} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer has-[:checked]:bg-primary-50 has-[:checked]:border-primary-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:has-[:checked]:bg-primary-700 dark:has-[:checked]:border-primary-500">
                       <input
                         type="radio"
                         name="reportReason"
                         value={option.value}
                         checked={selectedReportReason === option.value}
                         onChange={handleReportReasonChange}
-                        className="form-radio h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                        className="form-radio h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500 dark:text-primary-500 dark:border-slate-500 dark:focus:ring-offset-slate-800"
                         disabled={reportSubmitting}
                       />
-                      <span className="text-sm text-gray-700">{option.label}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
                     </label>
                   ))}
                 </div>
                 <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+                  {/* .btn-secondary and .btn-danger already have dark styles from index.css */}
                   <button
                     type="button"
                     onClick={handleCloseReportModal}
@@ -726,7 +734,7 @@ const QuizPage = () => {
                 </div>
               </form>
             )}
-             {reportSuccessMessage && ( // Sadece başarı mesajı varken farklı bir buton gösterilebilir veya modal otomatik kapanır.
+             {reportSuccessMessage && (
                 <div className="mt-4 text-right">
                      <button
                         type="button"

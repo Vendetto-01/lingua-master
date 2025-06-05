@@ -284,27 +284,27 @@ const HomePage = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Quiz Results Modal */}
       {showQuizResults && quizResults && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-slide-up">
+        <div className="fixed inset-0 bg-black bg-opacity-75 dark:bg-opacity-80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-slide-up dark:bg-slate-800">
             <div className="text-center">
               <div className="text-6xl mb-4">
                 {quizResults.correct / quizResults.total >= 0.8 ? '🎉' :
                  quizResults.correct / quizResults.total >= 0.6 ? '👏' : '💪'}
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Quiz Complete!</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2 dark:text-gray-100">Quiz Complete!</h3>
+              <p className="text-gray-600 mb-6 dark:text-gray-300">
                 {quizResults.displayName} Level - Great job on completing the quiz!
               </p>
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-blue-600">{quizResults.correct}/{quizResults.total}</div>
-                  <div className="text-sm text-blue-600">Score</div>
+                <div className="bg-blue-50 rounded-lg p-4 dark:bg-blue-900 dark:bg-opacity-50">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-300">{quizResults.correct}/{quizResults.total}</div>
+                  <div className="text-sm text-blue-600 dark:text-blue-400">Score</div>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="bg-green-50 rounded-lg p-4 dark:bg-green-900 dark:bg-opacity-50">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-300">
                     {quizResults.total > 0 ? Math.round((quizResults.correct / quizResults.total) * 100) : 0}%
                   </div>
-                  <div className="text-sm text-green-600">Accuracy</div>
+                  <div className="text-sm text-green-600 dark:text-green-400">Accuracy</div>
                 </div>
               </div>
               <button onClick={dismissResults} className="btn-primary w-full">
@@ -317,23 +317,23 @@ const HomePage = () => {
 
       {/* Welcome Section */}
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 dark:text-gray-100">
           {getGreeting()}, {user?.email?.split('@')[0] || 'Learner'}! 👋
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-6">
+        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-6 dark:text-gray-300">
           {getMotivationalMessage()}
         </p>
-        <div className="flex justify-center items-center space-x-8 text-sm text-gray-500">
+        <div className="flex justify-center items-center space-x-8 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center space-x-1">
-            <span className="text-primary-500">📚</span>
+            <span className="text-primary-500 dark:text-primary-400">📚</span>
             <span>{dashboardStats.total_questions_available} questions available</span>
           </div>
           <div className="flex items-center space-x-1">
-            <span className="text-green-500">🎯</span>
+            <span className="text-green-500 dark:text-green-400">🎯</span>
             <span>{difficultyLevels.length} difficulty levels</span>
           </div>
           <div className="flex items-center space-x-1">
-            <span className="text-yellow-500">🏆</span>
+            <span className="text-yellow-500 dark:text-yellow-400">🏆</span>
             <span>{dashboardStats.total_points} total points</span>
           </div>
         </div>
@@ -341,53 +341,53 @@ const HomePage = () => {
 
       {/* Error Display */}
       {error && (
-        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900 dark:bg-opacity-30 dark:border-red-700">
           <div className="flex items-center">
-            <span className="text-red-500 text-xl mr-3">⚠️</span>
+            <span className="text-red-500 text-xl mr-3 dark:text-red-400">⚠️</span>
             <div>
-              <p className="text-red-700 font-medium">{error}</p>
+              <p className="text-red-700 font-medium dark:text-red-300">{error}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Dashboard Stats Cards */}
+      {/* Dashboard Stats Cards - .card class from index.css handles dark mode bg/border */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div className="card text-center group hover:shadow-lg transition-all duration-200">
+        <div className="card text-center group hover:shadow-lg transition-all duration-200 dark:hover:shadow-primary-500/20">
           <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">📊</div>
-          <div className="text-2xl font-bold text-primary-600 mb-2">
+          <div className="text-2xl font-bold text-primary-600 mb-2 dark:text-primary-400">
             {dashboardStats.total_questions_available || '-'}
           </div>
-          <div className="text-sm text-gray-600 uppercase tracking-wide">Total Questions</div>
-          <div className="text-xs text-gray-500 mt-1">Ready to practice</div>
+          <div className="text-sm text-gray-600 uppercase tracking-wide dark:text-gray-300">Total Questions</div>
+          <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">Ready to practice</div>
         </div>
         
-        <div className="card text-center group hover:shadow-lg transition-all duration-200">
+        <div className="card text-center group hover:shadow-lg transition-all duration-200 dark:hover:shadow-success-500/20">
           <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🎯</div>
-          <div className="text-2xl font-bold text-success-600 mb-2">
+          <div className="text-2xl font-bold text-success-600 mb-2 dark:text-success-400">
             {dashboardStats.completed_today || 0}
           </div>
-          <div className="text-sm text-gray-600 uppercase tracking-wide">Answered Today</div>
-          <div className="text-xs text-gray-500 mt-1">Keep it up!</div>
+          <div className="text-sm text-gray-600 uppercase tracking-wide dark:text-gray-300">Answered Today</div>
+          <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">Keep it up!</div>
         </div>
         
-        <div className="card text-center group hover:shadow-lg transition-all duration-200">
+        <div className="card text-center group hover:shadow-lg transition-all duration-200 dark:hover:shadow-orange-500/20">
           <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🔥</div>
-          <div className="text-2xl font-bold text-orange-600 mb-2">
+          <div className="text-2xl font-bold text-orange-600 mb-2 dark:text-orange-400">
             {dashboardStats.streak_days || 0}
           </div>
-          <div className="text-sm text-gray-600 uppercase tracking-wide">Day Streak</div>
-          <div className="text-xs text-gray-500 mt-1">Keep learning daily</div>
+          <div className="text-sm text-gray-600 uppercase tracking-wide dark:text-gray-300">Day Streak</div>
+          <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">Keep learning daily</div>
         </div>
       </div>
 
       {/* Learning Paths Section */}
       <div className="mb-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4 dark:text-gray-100">
             Choose Your Learning Path 🛤️
           </h2>
-          <p className="text-gray-600 max-w-3xl mx-auto">
+          <p className="text-gray-600 max-w-3xl mx-auto dark:text-gray-300">
             Every expert was once a beginner. Pick the path that matches your current level or challenge yourself with mixed questions.
             Your journey to English mastery starts with a single question!
           </p>
@@ -396,10 +396,10 @@ const HomePage = () => {
         {/* General Courses Section */}
         {generalCourses.length > 0 && (
           <div className="mb-12">
-            <h3 className="text-2xl font-semibold text-gray-800 mb-3 pl-2 border-l-4 border-green-500">
+            <h3 className="text-2xl font-semibold text-gray-800 mb-3 pl-2 border-l-4 border-green-500 dark:text-gray-200 dark:border-green-400">
               Genel Pratik Alanları 🌍
             </h3>
-            <p className="text-gray-600 mb-6 ml-3">
+            <p className="text-gray-600 mb-6 ml-3 dark:text-gray-300">
               Farklı zorluk seviyelerinde pratik yaparak kelime dağarcığınızı genişletin.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -418,10 +418,10 @@ const HomePage = () => {
         {/* Personal Courses Section */}
         {personalCourses.length > 0 && (
           <div>
-            <h3 className="text-2xl font-semibold text-gray-800 mb-3 pl-2 border-l-4 border-sky-500">
+            <h3 className="text-2xl font-semibold text-gray-800 mb-3 pl-2 border-l-4 border-sky-500 dark:text-gray-200 dark:border-sky-400">
               Kişisel Gelişim Alanınız 🚀
             </h3>
-            <p className="text-gray-600 mb-6 ml-3">
+            <p className="text-gray-600 mb-6 ml-3 dark:text-gray-300">
               Öğrenme geçmişinizi takip edin ve zayıf yönlerinizi güçlendirin.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
