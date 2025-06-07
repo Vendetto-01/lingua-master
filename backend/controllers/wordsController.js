@@ -281,8 +281,74 @@ const checkAnswer = async (req, res) => {
   }
 };
 
+// Delete a word
+const deleteWord = async (req, res) => {
+  try {
+    const { wordId } = req.params;
+    const userId = req.user?.id; // Assuming user ID is available from auth middleware
+
+    if (!wordId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing data',
+        message: 'Word ID is required'
+      });
+    }
+
+    // Optional: Check if the user has permission to delete or if it's an admin action.
+    // For now, we'll assume any authenticated user can trigger this if they selected the report option.
+    // A more robust system might involve checking roles or if the user originally reported it for deletion.
+
+    const { data, error } = await supabase
+      .from('words')
+      .delete()
+      .match({ id: wordId });
+
+    if (error) {
+      console.error('Database error (deleting word):', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error',
+        message: 'Failed to delete word from database'
+      });
+    }
+
+    // `data` might be an empty array if the delete was successful but nothing matched,
+    // or an array of deleted items. Supabase delete doesn't always return the deleted items by default.
+    // The `error` object being null is the primary indicator of success.
+    // We can also check `count` if returned by Supabase, or assume success if no error.
+
+    // Let's check if anything was actually deleted by trying to select it again (or rely on count if available)
+    // For simplicity, if no error, assume deletion was processed.
+    // If you need to confirm deletion, you might check the 'count' property if your Supabase client version returns it,
+    // or if the 'data' array returned by delete has items.
+
+    // If we want to be more precise about "not found" vs "deleted":
+    // const { data: deletedItem, error: selectError } = await supabase.from('words').select('id').eq('id', wordId).single();
+    // if (selectError && selectError.code === 'PGRST116') { // PostgREST code for "Not Found"
+    //    // This means it was successfully deleted or never existed.
+    // }
+
+    // For now, if no error, we assume it's done.
+    console.log(`Word with ID: ${wordId} delete request processed. User ID: ${userId || 'N/A'}`);
+    res.json({
+      success: true,
+      message: `Word with ID ${wordId} has been deleted.`
+    });
+
+  } catch (error) {
+    console.error('Delete word error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error',
+      message: 'An unexpected error occurred while deleting the word'
+    });
+  }
+};
+
 module.exports = {
   getRandomWords,
   getDifficultyLevels,
-  checkAnswer
+  checkAnswer,
+  deleteWord // Added deleteWord
 };

@@ -3,14 +3,14 @@ const express = require('express');
 const router = express.Router();
 
 // Import route modules
-const questionsRoutes = require('./questions'); // Keep for legacy
+// const questionsRoutes = require('./questions'); // REMOVED Legacy
 const wordsRoutes = require('./words'); // NEW: Words routes
 const userRoutes = require('./user');
 const historyRoutes = require('./history');
 
 // API Routes
 router.use('/words', wordsRoutes); // NEW: Primary words endpoints
-router.use('/questions', questionsRoutes); // LEGACY: Keep for backward compatibility
+// router.use('/questions', questionsRoutes); // REMOVED Legacy
 router.use('/users', userRoutes);
 router.use('/history', historyRoutes);
 
@@ -46,23 +46,7 @@ router.get('/', (req, res) => {
           status: 'ACTIVE'
         }
       },
-      questions: { // LEGACY: Still available for compatibility
-        'GET /api/questions/random': {
-          description: 'Legacy endpoint - may not work with new words database',
-          status: 'LEGACY - use /api/words/random instead'
-        },
-        'GET /api/questions/difficulties': {
-          description: 'Legacy endpoint - may not work with new words database',
-          status: 'LEGACY - use /api/words/difficulties instead'
-        },
-        'POST /api/questions/check': {
-          description: 'Legacy endpoint - may not work with new words database',
-          status: 'LEGACY - use /api/words/check instead'
-        },
-        'GET /api/questions/previous': 'Deprecated - use /api/history/learning',
-        'GET /api/questions/incorrect': 'Coming soon - weakness training',
-        'GET /api/questions/stats': 'Deprecated - use /api/users/dashboard-stats and /api/users/course-stats'
-      },
+      // REMOVED Legacy questions section from API info
       users: {
         'POST /api/users/session': {
             description: 'Record a completed quiz session and update user stats.',

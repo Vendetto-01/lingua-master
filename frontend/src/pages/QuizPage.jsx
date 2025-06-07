@@ -1,25 +1,24 @@
 // frontend/src/pages/QuizPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { questionsAPI, userStatsAPI, difficultyUtils, courseUtils, questionUtils } from '../services/api'; // questionsAPI'ye submitReportQuestion eklenecek
+import { questionsAPI, userStatsAPI } from '../services/api'; // Removed utils
+import { difficultyUtils } from '../utils/difficultyUtils'; // Added import
+import { courseUtils } from '../utils/courseUtils'; // Added import
+import { questionUtils } from '../utils/questionUtils'; // Added import
 import LoadingSpinner from '../components/LoadingSpinner';
-// import { FlagIcon } from '@heroicons/react/24/outline'; // İkon istenirse eklenebilir
+import ReportModal from '../components/quiz/ReportModal';
+import QuestionActionsMenu from '../components/quiz/QuestionActionsMenu';
+import QuizHeader from '../components/quiz/QuizHeader'; // Import QuizHeader
+import QuestionDisplay from '../components/quiz/QuestionDisplay'; // Import QuestionDisplay
+import { useQuizCore } from '../hooks/useQuizCore';
+import { useWeaknessManagement } from '../hooks/useWeaknessManagement';
+import { escapeRegExp, highlightWord } from '../utils/textUtils'; // Import helper functions
 
 // Helper function to escape special characters for regex
-function escapeRegExp(string) {
-  if (typeof string !== 'string') return '';
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+// function escapeRegExp(string) { ... } // Moved to textUtils.js
 
 // Helper function to highlight a word in a text
-function highlightWord(text, wordToHighlight) {
-  if (typeof text !== 'string' || typeof wordToHighlight !== 'string' || !wordToHighlight.trim()) {
-    return text;
-  }
-  const escapedWord = escapeRegExp(wordToHighlight);
-  const regex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
-  return text.replace(regex, '<strong><u>$1</u></strong>');
-}
+// function highlightWord(text, wordToHighlight) { ... } // Moved to textUtils.js
 
 const QuizPage = () => {
   const { courseType } = useParams();
@@ -27,243 +26,56 @@ const QuizPage = () => {
 
   const parsedCourseInfo = courseUtils.parseCourseType(courseType);
 
-  const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswerIndex, setSelectedAnswerIndex] = useState(null);
-  const [showResult, setShowResult] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false); // Cevap gönderme
-  const [error, setError] = useState('');
-  const [score, setScore] = useState({ correct: 0, total: 0 });
+  const {
+    questions,
+    currentQuestionIndex,
+    currentQuestion, // Get currentQuestion from the hook
+    selectedAnswerIndex,
+    showResult,
+    isCorrect,
+    loading,
+    submitting,
+    error,
+    score,
+    answerDetails,
+    quizInfo,
+    loadQuestions, // Expose loadQuestions from the hook
+    handleAnswerSelect,
+    handleSubmitAnswer,
+    handleNextQuestion,
+    updateQuestions, // For updating questions list after deletion
+    setCurrentQuestionIndex // For updating index after deletion
+  } = useQuizCore(courseType, parsedCourseInfo);
 
   // Raporlama state'leri
   const [showReportModal, setShowReportModal] = useState(false);
-  const [selectedReportReason, setSelectedReportReason] = useState('');
-  const [reportSubmitting, setReportSubmitting] = useState(false); // Rapor gönderme
-  const [reportError, setReportError] = useState('');
-  const [reportSuccessMessage, setReportSuccessMessage] = useState('');
+  // selectedReportReason, reportSubmitting, reportError, reportSuccessMessage are now managed by ReportModal.jsx
 
-  // Weakness Training / Study List state'leri
-  const [weaknessSubmitting, setWeaknessSubmitting] = useState(false);
-  const [weaknessStatusMessage, setWeaknessStatusMessage] = useState(''); // For add/remove feedback
+  const {
+    weaknessSubmitting,
+    weaknessStatusMessage,
+    handleAddWeaknessItem,
+    handleRemoveWeaknessItem,
+  } = useWeaknessManagement();
 
-  // Reported Questions state'leri
-  const [dismissingReportItem, setDismissingReportItem] = useState(false);
-  const [dismissReportItemMessage, setDismissReportItemMessage] = useState('');
-  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
-  const actionsMenuRef = useRef(null);
+  // Reported Questions state and handlers are now from useReportedItemsManagement
+  const {
+    dismissingReportItem,
+    dismissReportItemMessage,
+    handleDismissReportItem,
+  } = useReportedItemsManagement();
+  // isActionsMenuOpen and actionsMenuRef are now managed by QuestionActionsMenu.jsx
 
+  // State like answerDetails, quizInfo, questions, currentQuestionIndex, etc.,
+  // and refs like answeredQuestionsDetailsRef, quizStartTimeRef are now managed by useQuizCore
 
-  const [answerDetails, setAnswerDetails] = useState({
-    correctAnswerText: '',
-    correctOriginalLetter: '',
-    explanation: '',
-    hasExplanation: false
-  });
-
-  const [quizInfo, setQuizInfo] = useState({
-    difficulty: parsedCourseInfo.difficulty,
-    displayName: difficultyUtils.getDisplayName(parsedCourseInfo.difficulty),
-    icon: difficultyUtils.getIcon(parsedCourseInfo.difficulty)
-  });
-
-  const answeredQuestionsDetailsRef = useRef([]);
-  const quizStartTimeRef = useRef(null);
-
-  const currentQuestion = questions[currentQuestionIndex];
-
-  useEffect(() => {
-    loadQuestions();
-    quizStartTimeRef.current = Date.now();
-    answeredQuestionsDetailsRef.current = [];
-
-    // Click outside handler for actions menu
-    const handleClickOutside = (event) => {
-      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
-        setIsActionsMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [courseType]);
+  // useEffect for loading questions is now inside useQuizCore
 
   const isWeaknessTrainingCourse = courseType === 'weakness-training';
   const isReportedQuestionsCourse = courseType === 'reported-questions';
 
-  const loadQuestions = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      setQuestions([]);
-      setCurrentQuestionIndex(0);
-      setScore({ correct: 0, total: 0 });
-      setShowResult(false);
-      setSelectedAnswerIndex(null);
-      setWeaknessStatusMessage('');
-      setDismissReportItemMessage('');
-
-
-      const questionLimit = 10;
-      let response;
-
-      if (isWeaknessTrainingCourse) {
-        setQuizInfo({
-            difficulty: 'custom',
-            displayName: 'Weakness Training',
-            icon: '💪'
-        });
-        response = await questionsAPI.getWeaknessTrainingQuestions(questionLimit);
-      } else if (isReportedQuestionsCourse) {
-        setQuizInfo({
-            difficulty: 'review',
-            displayName: 'My Reported Questions',
-            icon: '🗒️'
-        });
-        response = await questionsAPI.getUserReportedQuestions(questionLimit);
-      } else {
-        setQuizInfo({
-            difficulty: parsedCourseInfo.difficulty,
-            displayName: difficultyUtils.getDisplayName(parsedCourseInfo.difficulty),
-            icon: difficultyUtils.getIcon(parsedCourseInfo.difficulty)
-        });
-        if (parsedCourseInfo.isGeneral || parsedCourseInfo.difficulty === 'mixed') {
-          response = await questionsAPI.getRandomQuestions(questionLimit, 'mixed');
-        } else if (parsedCourseInfo.type === 'difficulty') {
-          response = await questionsAPI.getRandomQuestions(questionLimit, parsedCourseInfo.difficulty);
-        } else {
-          setError('This course type is not yet available');
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (response.success && response.questions && response.questions.length > 0) {
-        const validQuestions = response.questions.filter(questionUtils.validateQuestion);
-        if (validQuestions.length !== response.questions.length) {
-          console.warn(`${response.questions.length - validQuestions.length} invalid questions filtered out`);
-        }
-        if (validQuestions.length === 0) {
-          setError('No valid questions available for this level.');
-          setQuestions([]);
-        } else {
-          setQuestions(validQuestions.map(q => questionUtils.formatQuestion(q)));
-        }
-      } else {
-        let courseNameForError = quizInfo.displayName;
-        if(isWeaknessTrainingCourse) courseNameForError = 'Weakness Training';
-        if(isReportedQuestionsCourse) courseNameForError = 'My Reported Questions';
-        setError(response.message || `No questions available for ${courseNameForError}.`);
-        setQuestions([]);
-      }
-    } catch (err) {
-      console.error('Error loading questions:', err);
-      setError(err.message || 'Failed to load questions');
-      setQuestions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAnswerSelect = (answerIndex) => {
-    if (showResult) return;
-    setSelectedAnswerIndex(answerIndex);
-  };
-
-  const handleSubmitAnswer = async () => {
-    if (selectedAnswerIndex === null || !currentQuestion || !currentQuestion.options) return;
-
-    const selectedOption = currentQuestion.options[selectedAnswerIndex];
-    if (!selectedOption || !selectedOption.originalLetter) {
-        console.error("Selected option or its originalLetter is undefined", selectedOption);
-        setError("Could not process your answer. Please try again.");
-        return;
-    }
-    const selectedOriginalLetter = selectedOption.originalLetter;
-
-    try {
-      setSubmitting(true);
-      const response = await questionsAPI.checkAnswer(
-        currentQuestion.id,
-        selectedOriginalLetter
-      );
-
-      if (response.success) {
-        setIsCorrect(response.isCorrect);
-        setAnswerDetails({
-          correctAnswerText: response.correctAnswerText,
-          correctOriginalLetter: response.correctOriginalLetter,
-          explanation: response.explanation || '',
-          hasExplanation: !!(response.explanation && response.explanation.trim())
-        });
-        setShowResult(true);
-        setScore(prev => ({
-          correct: prev.correct + (response.isCorrect ? 1 : 0),
-          total: prev.total + 1
-        }));
-
-        answeredQuestionsDetailsRef.current.push({
-            question_id: currentQuestion.id,
-            selected_original_letter: selectedOriginalLetter,
-            is_correct: response.isCorrect
-        });
-
-      } else {
-        setError(response.message || 'Failed to check answer');
-      }
-    } catch (err) {
-      console.error('Error checking answer:', err);
-      setError(err.message || 'Failed to check answer');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleNextQuestion = async () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswerIndex(null);
-      setShowResult(false);
-      setIsCorrect(false);
-      setAnswerDetails({
-        correctAnswerText: '',
-        correctOriginalLetter: '',
-        explanation: '',
-        hasExplanation: false
-      });
-    } else {
-      setSubmitting(true);
-      try {
-        const quizEndTime = Date.now();
-        const durationInSeconds = Math.round((quizEndTime - quizStartTimeRef.current) / 1000);
-
-        const sessionDetails = {
-            course_type: courseType,
-            score_correct: score.correct,
-            score_total: score.total,
-            duration_seconds: durationInSeconds,
-            questions_answered_details: answeredQuestionsDetailsRef.current
-        };
-        await userStatsAPI.recordQuizSession(sessionDetails);
-        const finalScoreForState = {
-            correct: score.correct,
-            total: score.total,
-            difficulty: quizInfo.difficulty,
-            displayName: quizInfo.displayName,
-        };
-        navigate('/', { state: { quizCompleted: true, score: finalScoreForState } });
-
-      } catch (saveError) {
-          console.error("Error saving quiz session:", saveError);
-          setError(saveError.message || "Failed to save your quiz results. Please try again or contact support.");
-      } finally {
-          setSubmitting(false);
-      }
-    }
-  };
+  // loadQuestions, handleAnswerSelect, handleSubmitAnswer, handleNextQuestion
+  // are now part of useQuizCore hook.
 
   const handleBackToHome = () => navigate('/');
   const getAccuracyColor = (accuracy) => {
@@ -272,134 +84,42 @@ const QuizPage = () => {
     return 'text-red-600';
   };
 
-  // Raporlama için sabit seçenekler (İngilizce ve emojili)
-  const REPORT_OPTIONS = [
-    { value: 'question_incorrect', label: 'Question is incorrect ❌' },
-    { value: 'options_incorrect', label: 'Options are incorrect 📝' },
-    { value: 'question_irrelevant', label: 'Question is irrelevant 🗑️' },
-    { value: 'inappropriate_content', label: 'Inappropriate content 🚫' },
-    { value: 'just_because', label: 'Just because I felt like it 😎' }
-  ];
+  // REPORT_OPTIONS is now in ReportModal.jsx
 
   const handleOpenReportModal = () => {
     if (!currentQuestion) return;
-    setSelectedReportReason(REPORT_OPTIONS[0]?.value || '');
-    setReportError('');
-    setReportSuccessMessage('');
     setShowReportModal(true);
   };
 
   const handleCloseReportModal = () => {
     setShowReportModal(false);
-    // Modal kapandığında mesajları temizle, bir sonraki açılışta görünmesinler
-    setReportError('');
-    setReportSuccessMessage('');
   };
 
-  const handleReportReasonChange = (event) => {
-    setSelectedReportReason(event.target.value);
-  };
+  // handleReportReasonChange and handleSubmitReport are now managed by ReportModal.jsx
+  // handleAddWeaknessItem and handleRemoveWeaknessItem are now part of useWeaknessManagement hook
 
-  const handleSubmitReport = async () => {
-    if (!selectedReportReason || !currentQuestion) return;
+  const handleReportActionCompleted = ({ type, questionId }) => {
+    if (type === 'delete' && questionId === currentQuestion?.id) {
+      const newQuestionsList = questions.filter(q => q.id !== questionId);
+      updateQuestions(newQuestionsList); // Use the updater from the hook
 
-    setReportSubmitting(true);
-    setReportError('');
-    setReportSuccessMessage('');
-    try {
-      // questionsAPI.submitReportQuestion fonksiyonu api.js'de oluşturulacak
-      const response = await questionsAPI.submitReportQuestion({
-        word_id: currentQuestion.id,
-        report_reason: selectedReportReason,
-        // user_id: backend JWT'den alabilir veya AuthContext'ten eklenebilir.
-      });
-
-      if (response.success) {
-        setReportSuccessMessage('Your report has been submitted successfully. Thank you!');
-        setTimeout(() => {
-          handleCloseReportModal();
-        }, 2500); // Mesajı gösterdikten sonra modalı kapat
-      } else {
-        setReportError(response.message || 'Failed to submit report. Please try again.');
+      if (newQuestionsList.length === 0) {
+        handleBackToHome();
+      } else if (currentQuestionIndex >= newQuestionsList.length) {
+        // If deleted was last, new index should be last of new list
+        setCurrentQuestionIndex(Math.max(0, newQuestionsList.length - 1));
+        // If the list became empty, handleNextQuestion might try to finish quiz with no questions.
+        // The newQuestionsList.length === 0 check above should prevent this.
+        // If it was the last of many, handleNextQuestion will correctly finish the quiz.
+         handleNextQuestion(); // This will either go to next or finish quiz
       }
-    } catch (err) {
-      console.error('Error submitting report:', err);
-      setReportError(err.message || 'An error occurred while submitting the report.');
-    } finally {
-      setReportSubmitting(false);
+      // If not the last question, currentQuestionIndex might still be valid,
+      // or if it was the current one, currentQuestion will update due to questions list change.
     }
+    // No specific action needed for 'report' type in QuizPage itself, modal handles feedback.
   };
 
-  const handleAddWeaknessItem = async () => {
-    if (!currentQuestion || weaknessSubmitting) return;
-    setWeaknessSubmitting(true);
-    setWeaknessStatusMessage('');
-    try {
-      const response = await questionsAPI.addWeaknessItem(currentQuestion.id);
-      if (response.success) {
-        setWeaknessStatusMessage('Added to your Study List!');
-        // Optionally, update button state or icon here
-      } else {
-        setWeaknessStatusMessage(response.message || 'Could not add to Study List.');
-      }
-    } catch (error) {
-      setWeaknessStatusMessage(error.message || 'Error adding to Study List.');
-    } finally {
-      setWeaknessSubmitting(false);
-      setTimeout(() => setWeaknessStatusMessage(''), 3000); // Clear message after 3s
-    }
-  };
-
-  const handleRemoveWeaknessItem = async () => {
-    if (!currentQuestion || weaknessSubmitting) return;
-    setWeaknessSubmitting(true);
-    setWeaknessStatusMessage('');
-    try {
-      const response = await questionsAPI.removeWeaknessItem(currentQuestion.id);
-      if (response.success) {
-        setWeaknessStatusMessage('Removed from your Study List.');
-        // Optionally, remove question from current quiz view or allow skip
-        // For now, just show message. User can go to next question.
-        // To remove from view:
-        // setQuestions(prev => prev.filter(q => q.id !== currentQuestion.id));
-        // if (currentQuestionIndex >= questions.length - 1 && questions.length > 1) {
-        //   setCurrentQuestionIndex(prev => Math.max(0, prev -1));
-        // } // This logic can be complex, handle with care.
-      } else {
-        setWeaknessStatusMessage(response.message || 'Could not remove from Study List.');
-      }
-    } catch (error) {
-      setWeaknessStatusMessage(error.message || 'Error removing from Study List.');
-    } finally {
-      setWeaknessSubmitting(false);
-      setTimeout(() => setWeaknessStatusMessage(''), 3000); // Clear message after 3s
-    }
-  };
-
-  const handleDismissReportItem = async () => {
-    if (!currentQuestion || !currentQuestion.report_id || dismissingReportItem) return;
-    setDismissingReportItem(true);
-    setDismissReportItemMessage('');
-    try {
-      const response = await questionsAPI.dismissUserReport(currentQuestion.report_id);
-      if (response.success) {
-        setDismissReportItemMessage('Report dismissed from your list.');
-        // Optional: Remove question from view or auto-advance
-        // This might be complex if it's the last question. For now, user can click next.
-        // Consider:
-        // setQuestions(prevQs => prevQs.filter(q => q.id !== currentQuestion.id));
-        // if (questions.length -1 === 0) { handleBackToHome(); }
-        // else if (currentQuestionIndex >= questions.length - 2) { handleNextQuestion(); }
-      } else {
-        setDismissReportItemMessage(response.message || 'Could not dismiss report.');
-      }
-    } catch (error) {
-      setDismissReportItemMessage(error.message || 'Error dismissing report.');
-    } finally {
-      setDismissingReportItem(false);
-      setTimeout(() => setDismissReportItemMessage(''), 3000); // Clear message after 3s
-    }
-  };
+  // const handleDismissReportItem = async () => { ... }; // This function is now in useReportedItemsManagement.js
 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-900"><LoadingSpinner size="large" text={`Loading ${quizInfo.displayName} questions...`} /></div>;
@@ -410,6 +130,12 @@ const QuizPage = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-4 dark:text-gray-100">Oops! Something went wrong</h2>
         <p className="text-gray-600 mb-6 dark:text-gray-300">{error}</p>
         <div className="space-y-3">
+          {/* loadQuestions is now primarily managed by the hook's useEffect,
+              but can be exposed if a manual "Try Again" is desired.
+              For now, assuming initial load is sufficient or error state handles it.
+              If manual reload is needed, the hook should expose `loadQuestions`.
+              Let's assume the hook's `loadQuestions` is exposed for this button.
+          */}
           <button onClick={loadQuestions} className="btn-primary w-full">Try Again</button>
           <button onClick={handleBackToHome} className="btn-secondary w-full">Back to Home</button>
         </div>
@@ -437,31 +163,14 @@ const QuizPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header and Progress */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={handleBackToHome} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors dark:text-gray-300 dark:hover:text-white">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            Back to Home
-          </button>
-          <div className="text-sm text-gray-600 flex items-center space-x-2 dark:text-gray-300">
-            <span>{quizInfo.icon}</span>
-            <span>{quizInfo.displayName} Quiz</span>
-          </div>
-        </div>
-        <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2 dark:text-gray-100">{quizInfo.icon} {quizInfo.displayName} Quiz</h1>
-          <p className="text-gray-600 dark:text-gray-300">Question {currentQuestionIndex + 1} of {questions.length}</p>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-3 mb-4 dark:bg-slate-700">
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-300" style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}></div>
-        </div>
-        <div className="flex justify-center space-x-6 text-sm">
-          <div className="text-center"><div className="font-bold text-gray-900 dark:text-gray-100">{score.correct}/{score.total}</div><div className="text-gray-500 dark:text-gray-400">Score</div></div>
-          {score.total > 0 && (<div className="text-center"><div className={`font-bold ${getAccuracyColor(currentAccuracy)} dark:${getAccuracyColor(currentAccuracy).replace('text-','text-dark-')}`}>{currentAccuracy}%</div><div className="text-gray-500 dark:text-gray-400">Accuracy</div></div>)} {/* Note: getAccuracyColor might need dark variants */}
-          <div className="text-center"><div className="font-bold text-gray-900 dark:text-gray-100">{questions.length - (currentQuestionIndex + 1)}</div><div className="text-gray-500 dark:text-gray-400">Remaining</div></div>
-        </div>
-      </div>
+      <QuizHeader
+        quizInfo={quizInfo}
+        currentQuestionIndex={currentQuestionIndex}
+        questionsLength={questions.length}
+        score={score}
+        handleBackToHome={handleBackToHome}
+        getAccuracyColor={getAccuracyColor}
+      />
 
       {error && questions.length > 0 && (
            <div className="mb-4 p-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700 dark:bg-danger-900 dark:bg-opacity-30 dark:border-danger-700 dark:text-danger-300">
@@ -470,47 +179,10 @@ const QuizPage = () => {
        )}
 
       {currentQuestion && (
-        <div className="card-elevated mb-8"> {/* .card-elevated already has dark styles from index.css */}
-            {currentQuestion.difficulty && (
-            <div className="flex justify-end mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    currentQuestion.difficulty === 'beginner' ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' :
-                    currentQuestion.difficulty === 'intermediate' ? 'bg-blue-100 text-blue-700 dark:bg-blue-700 dark:text-blue-100' :
-                    currentQuestion.difficulty === 'advanced' ? 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100' :
-                    'bg-gray-100 text-gray-700 dark:bg-slate-600 dark:text-gray-300' // Fallback for other difficulties
-                }`}>
-                {difficultyUtils.getDisplayName(currentQuestion.difficulty)}
-                </span>
-            </div>
-            )}
-            {currentQuestion.paragraph && currentQuestion.word && (
-            <div className="mb-6">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 dark:from-slate-700 dark:to-slate-600 dark:border-slate-500">
-                <div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2 dark:text-blue-300">Context</div>
-                <p
-                  className="text-gray-700 leading-relaxed italic dark:text-gray-300"
-                  dangerouslySetInnerHTML={{ __html: `"${highlightWord(currentQuestion.paragraph, currentQuestion.word)}"` }}
-                />
-              </div>
-            </div>
-            )}
-            {currentQuestion.question_text && currentQuestion.word && (
-            <div className="mb-8">
-              <h2
-                className="text-xl sm:text-2xl text-gray-900 leading-relaxed dark:text-gray-100" /* font-semibold removed */
-                dangerouslySetInnerHTML={{ __html: highlightWord(currentQuestion.question_text, currentQuestion.word) }}
-              />
-            </div>
-            )}
-            {/* Fallback if word is not available for highlighting but text is */}
-            {currentQuestion.paragraph && !currentQuestion.word && (
-             <div className="mb-6"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 dark:from-slate-700 dark:to-slate-600 dark:border-slate-500"><div className="text-xs uppercase tracking-wide text-blue-600 font-semibold mb-2 dark:text-blue-300">Context</div><p className="text-gray-700 leading-relaxed italic dark:text-gray-300">"{currentQuestion.paragraph}"</p></div></div>
-            )}
-            {currentQuestion.question_text && !currentQuestion.word && (
-              <div className="mb-8"><h2 className="text-xl sm:text-2xl text-gray-900 leading-relaxed dark:text-gray-100">{currentQuestion.question_text}</h2></div> /* font-semibold removed */
-            )}
-
-            <div className="space-y-3 mb-8">
+        <div className="card-elevated mb-8">
+          <QuestionDisplay currentQuestion={currentQuestion} />
+          {/* Options, Actions, Result, and Buttons are now part of the same parent div as QuestionDisplay */}
+          <div className="space-y-3 mb-8">
             {currentQuestion.options.map((option, index) => {
                 let optionClass = 'quiz-option text-left'; // .quiz-option has dark styles from index.css
                 let iconClass = 'w-6 h-6 mr-3 flex-shrink-0';
@@ -546,70 +218,20 @@ const QuizPage = () => {
                 </button>
                 );
             })}
-            </div>
+          </div>
 
             {/* Action Buttons Area - New Actions Menu */}
-            {currentQuestion && (
-              <div className="relative mt-6 mb-4 text-center sm:text-right" ref={actionsMenuRef}>
-                <button
-                  onClick={() => setIsActionsMenuOpen(prev => !prev)}
-                  className="inline-flex items-center justify-center p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-700 dark:focus:ring-offset-slate-800"
-                  title="More actions"
-                  disabled={submitting || reportSubmitting || weaknessSubmitting || dismissingReportItem}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                  </svg>
-                  <span className="sr-only">Open actions menu</span>
-                </button>
-
-                {isActionsMenuOpen && (
-                  <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 dark:bg-slate-700 dark:ring-white dark:ring-opacity-20">
-                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                      {!isReportedQuestionsCourse && (
-                        <button
-                          onClick={() => { handleOpenReportModal(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
-                          role="menuitem"
-                          disabled={reportSubmitting}
-                        >
-                          ⚠️ Report Question
-                        </button>
-                      )}
-                      {!isWeaknessTrainingCourse && !isReportedQuestionsCourse && (
-                        <button
-                          onClick={() => { handleAddWeaknessItem(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
-                          role="menuitem"
-                          disabled={weaknessSubmitting}
-                        >
-                          ➕ Add to Weakness Training
-                        </button>
-                      )}
-                      {isWeaknessTrainingCourse && (
-                        <button
-                          onClick={() => { handleRemoveWeaknessItem(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
-                          role="menuitem"
-                          disabled={weaknessSubmitting}
-                        >
-                          ➖ Remove from Weakness Training
-                        </button>
-                      )}
-                      {isReportedQuestionsCourse && currentQuestion.report_id && (
-                        <button
-                          onClick={() => { handleDismissReportItem(); setIsActionsMenuOpen(false); }}
-                          className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-slate-600 dark:hover:text-white"
-                          role="menuitem"
-                          disabled={dismissingReportItem}
-                        >
-                          ➖ Dismiss from List
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            {currentQuestion && ( // This check might be redundant if parent currentQuestion check is sufficient
+              <QuestionActionsMenu
+                currentQuestion={currentQuestion}
+                isReportedQuestionsCourse={isReportedQuestionsCourse}
+                isWeaknessTrainingCourse={isWeaknessTrainingCourse}
+                onOpenReportModal={handleOpenReportModal}
+                onAddWeaknessItem={() => handleAddWeaknessItem(currentQuestion?.id)}
+                onRemoveWeaknessItem={() => handleRemoveWeaknessItem(currentQuestion?.id)}
+                onDismissReportItem={() => handleDismissReportItem(currentQuestion?.report_id)}
+                disabled={submitting || weaknessSubmitting || dismissingReportItem}
+              />
             )}
             {weaknessStatusMessage && (
                 <div className="my-2 text-sm text-center text-blue-700 dark:text-blue-300">{weaknessStatusMessage}</div>
@@ -664,90 +286,15 @@ const QuizPage = () => {
         </div>
       )}
       {/* The extra div that was here (previously line 442) is now removed. */}
-      {/* Raporlama Modal'ı */}
-      {showReportModal && currentQuestion && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 dark:bg-black dark:bg-opacity-60 transition-opacity z-50 flex items-center justify-center p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="bg-white rounded-lg shadow-xl p-5 sm:p-6 w-full max-w-lg transform transition-all dark:bg-slate-800">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold leading-6 text-gray-900 dark:text-gray-100" id="modal-title">
-                Report Question
-              </h3>
-              <button
-                type="button"
-                onClick={handleCloseReportModal}
-                disabled={reportSubmitting}
-                className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:text-gray-500 dark:hover:bg-slate-700 dark:hover:text-gray-300"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
-                <span className="sr-only">Close</span>
-              </button>
-            </div>
-
-            {reportError && <div className="mb-3 p-3 bg-danger-50 border border-danger-200 text-danger-700 rounded-md text-sm dark:bg-danger-900 dark:bg-opacity-30 dark:border-danger-700 dark:text-danger-300">{reportError}</div>}
-            {reportSuccessMessage && <div className="mb-3 p-3 bg-success-50 border border-success-200 text-success-700 rounded-md text-sm dark:bg-success-900 dark:bg-opacity-30 dark:border-success-700 dark:text-success-300">{reportSuccessMessage}</div>}
-
-            {!reportSuccessMessage && (
-              <form onSubmit={(e) => { e.preventDefault(); handleSubmitReport(); }}>
-                <div className="mb-4">
-                  <p className="text-sm text-gray-700 mb-1 dark:text-gray-300"><strong>Question:</strong></p>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border max-h-24 overflow-y-auto dark:text-gray-400 dark:bg-slate-700 dark:border-slate-600"><em>"{currentQuestion.question_text}"</em></p>
-                </div>
-                
-                <p className="text-sm font-medium text-gray-800 mb-2 dark:text-gray-200">Please select a reason for your report:</p>
-                <div className="space-y-3 mb-6">
-                  {REPORT_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer has-[:checked]:bg-primary-50 has-[:checked]:border-primary-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:has-[:checked]:bg-primary-700 dark:has-[:checked]:border-primary-500">
-                      <input
-                        type="radio"
-                        name="reportReason"
-                        value={option.value}
-                        checked={selectedReportReason === option.value}
-                        onChange={handleReportReasonChange}
-                        className="form-radio h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500 dark:text-primary-500 dark:border-slate-500 dark:focus:ring-offset-slate-800"
-                        disabled={reportSubmitting}
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
-                  {/* .btn-secondary and .btn-danger already have dark styles from index.css */}
-                  <button
-                    type="button"
-                    onClick={handleCloseReportModal}
-                    disabled={reportSubmitting}
-                    className="btn-secondary py-2 px-4 w-full sm:w-auto"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!selectedReportReason || reportSubmitting}
-                    className="btn-danger py-2 px-4 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
-                  >
-                    {reportSubmitting ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> Submitting...</>
-                    ) : (
-                      'Submit Report'
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-             {reportSuccessMessage && (
-                <div className="mt-4 text-right">
-                     <button
-                        type="button"
-                        onClick={handleCloseReportModal}
-                        className="btn-primary py-2 px-4"
-                    >
-                        Close
-                    </button>
-                </div>
-            )}
-          </div>
-        </div>
-      )}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={handleCloseReportModal}
+        currentQuestion={currentQuestion}
+        // reportOptions prop can be omitted if default is fine
+        onSubmitReport={questionsAPI.submitReportQuestion}
+        onDeleteQuestion={questionsAPI.deleteQuestion}
+        onActionComplete={handleReportActionCompleted}
+      />
     </div>
   );
 };
