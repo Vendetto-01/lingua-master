@@ -10,6 +10,8 @@ import ReportModal from '../components/quiz/ReportModal';
 import QuestionActionsMenu from '../components/quiz/QuestionActionsMenu';
 import QuizHeader from '../components/quiz/QuizHeader'; // Import QuizHeader
 import QuestionDisplay from '../components/quiz/QuestionDisplay'; // Import QuestionDisplay
+import QuestionOptions from '../components/quiz/QuestionOptions'; // Import QuestionOptions
+import AnswerResult from '../components/quiz/AnswerResult'; // Import AnswerResult
 import { useQuizCore } from '../hooks/useQuizCore';
 import { useWeaknessManagement } from '../hooks/useWeaknessManagement';
 import { escapeRegExp, highlightWord } from '../utils/textUtils'; // Import helper functions
@@ -181,47 +183,17 @@ const QuizPage = () => {
       {currentQuestion && (
         <div className="card-elevated mb-8">
           <QuestionDisplay currentQuestion={currentQuestion} />
-          {/* Options, Actions, Result, and Buttons are now part of the same parent div as QuestionDisplay */}
-          <div className="space-y-3 mb-8">
-            {currentQuestion.options.map((option, index) => {
-                let optionClass = 'quiz-option text-left'; // .quiz-option has dark styles from index.css
-                let iconClass = 'w-6 h-6 mr-3 flex-shrink-0';
-                let iconLetter = String.fromCharCode(65 + index);
-                let icon = null;
-
-                // Icon styling for dark mode needs to be considered within these conditions
-                if (showResult) {
-                  if (index === displayCorrectOptionIndex) {
-                      optionClass += ' quiz-option-correct'; // Has dark styles
-                      icon = <div className={`${iconClass} bg-success-500 rounded-full flex items-center justify-center`}><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>;
-                  } else if (index === selectedAnswerIndex && !isCorrect) {
-                      optionClass += ' quiz-option-incorrect'; // Has dark styles
-                      icon = <div className={`${iconClass} bg-danger-500 rounded-full flex items-center justify-center`}><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></div>;
-                  } else {
-                      icon = <div className={`${iconClass} bg-gray-200 dark:bg-slate-600 rounded-full flex items-center justify-center`}><span className="text-gray-600 dark:text-gray-300 text-sm font-medium">{iconLetter}</span></div>;
-                  }
-                } else {
-                  if (selectedAnswerIndex === index) {
-                      optionClass += ' quiz-option-selected'; // Has dark styles
-                      icon = <div className={`${iconClass} bg-primary-500 dark:bg-primary-600 rounded-full flex items-center justify-center`}><span className="text-white text-sm font-medium">{iconLetter}</span></div>;
-                  } else {
-                      icon = <div className={`${iconClass} bg-gray-200 dark:bg-slate-600 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors`}><span className="text-gray-600 dark:text-gray-300 text-sm font-medium">{iconLetter}</span></div>;
-                  }
-                }
-
-                return (
-                <button key={index} onClick={() => handleAnswerSelect(index)} disabled={showResult || submitting} className={optionClass}>
-                    <div className="flex items-center">
-                    {icon}
-                    <span className="flex-1">{option.text}</span> {/* Text color handled by .quiz-option's dark:text-gray-200 */}
-                    </div>
-                </button>
-                );
-            })}
-          </div>
-
-            {/* Action Buttons Area - New Actions Menu */}
-            {currentQuestion && ( // This check might be redundant if parent currentQuestion check is sufficient
+          <QuestionOptions
+            options={currentQuestion.options}
+            showResult={showResult}
+            selectedAnswerIndex={selectedAnswerIndex}
+            isCorrect={isCorrect}
+            displayCorrectOptionIndex={displayCorrectOptionIndex}
+            handleAnswerSelect={handleAnswerSelect}
+            submitting={submitting}
+          />
+          {/* Action Buttons Area - New Actions Menu */}
+          {currentQuestion && ( // This check might be redundant if parent currentQuestion check is sufficient
               <QuestionActionsMenu
                 currentQuestion={currentQuestion}
                 isReportedQuestionsCourse={isReportedQuestionsCourse}
@@ -240,33 +212,11 @@ const QuizPage = () => {
                 <div className="my-2 text-sm text-center text-gray-700 dark:text-gray-300">{dismissReportItemMessage}</div>
             )}
 
-            {showResult && (
-            <div className={`mb-6 p-4 rounded-lg animate-fade-in ${isCorrect ? 'bg-success-50 border-success-200 dark:bg-success-900 dark:bg-opacity-30 dark:border-success-700' : 'bg-danger-50 border-danger-200 dark:bg-danger-900 dark:bg-opacity-30 dark:border-danger-700'}`}>
-                <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                    {isCorrect ? <div className="w-8 h-8 bg-success-500 rounded-full flex items-center justify-center"><svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>
-                            : <div className="w-8 h-8 bg-danger-500 rounded-full flex items-center justify-center"><svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></div>}
-                </div>
-                <div className="flex-1">
-                    <p className={`font-semibold text-lg ${isCorrect ? 'text-success-800 dark:text-success-200' : 'text-danger-800 dark:text-danger-200'}`}>{isCorrect ? '🎉 Excellent!' : '❌ Not quite right'}</p>
-                    <p className={`text-sm mt-1 ${isCorrect ? 'text-success-700 dark:text-success-300' : 'text-danger-700 dark:text-danger-300'}`}>
-                    {isCorrect ? 'Great job! You got it right.' : `The correct answer is: ${answerDetails.correctAnswerText}`}
-                    </p>
-                    {answerDetails.hasExplanation && (
-                    <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200 dark:bg-slate-700 dark:border-slate-600">
-                        <div className="flex items-start space-x-2">
-                        <div className="text-blue-500 mt-0.5 dark:text-blue-400"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg></div>
-                        <div>
-                            <p className="text-xs font-medium text-blue-600 mb-1 dark:text-blue-300">Explanation</p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">{answerDetails.explanation}</p>
-                        </div>
-                        </div>
-                    </div>
-                    )}
-                </div>
-                </div>
-            </div>
-            )}
+            <AnswerResult
+                showResult={showResult}
+                isCorrect={isCorrect}
+                answerDetails={answerDetails}
+            />
 
             <div className="flex flex-col sm:flex-row gap-3">
             {/* .btn-primary already has dark styles from index.css */}

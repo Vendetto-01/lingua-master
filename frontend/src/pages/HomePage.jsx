@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { questionsAPI, userStatsAPI, difficultyUtils, courseUtils } from '../services/api';
+import { questionsAPI, userStatsAPI, difficultyUtils } from '../services/api'; // Removed courseUtils
+import { courseUtils } from '../utils/courseUtils'; // Added courseUtils import
 import LoadingSpinner from '../components/LoadingSpinner';
 import CourseCard from '../components/CourseCard';
 
